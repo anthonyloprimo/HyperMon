@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HyperMon v0.0.1</title>
+ 
+<script src="scr/jquery-3.4.1.min.js"></script>
+ 
+<style>
+@font-face {
+    font-family: 'pkmnFont';
+    src: url("pokemon-font.ttf");
+    font-weight: normal;
+    font-style: normal;
+    font-display: swap;
+}
+ 
+html, body {
+    height: 100%;
+    width: 100%;
+    font-family: 'pkmnFont', monospace;
+    font-size: 8px;
+    line-height: 8px;
+}
+    body {
+        background-color: #202735;
+        margin: 0; padding: 0; overflow: hidden;
+        display: flex; align-items: center; justify-content: center;
+    }
+ 
+#gameContainer {
+    width: 160px; height: 144px; aspect-ratio: 160/144; overflow: hidden;
+    margin: 0; padding: 0;
+    background-color: #FFFFFF;
+    image-rendering: pixelated; image-rendering: crisp-edges;
+    box-shadow: 0 1px 8px 4px #00000077;
+ 
+    background-image: url("titleTest.gif");
+}
+    #gameContainer * {
+        image-rendering: pixelated; image-rendering: crisp-edges;
+    }
+        #gameRoot{
+            position:relative; width:160px; height:144px; overflow:hidden;
+            image-rendering: pixelated; image-rendering: crisp-edges;
+        }
+        #layer-bg{
+            position:absolute; inset:0;
+            display:grid;
+            grid-template-columns: repeat(10, 16px);
+            grid-template-rows:    repeat(9, 16px);
+        }
+        #layer-sprites, #layer-ui{ position:absolute; inset:0; pointer-events:none; }
+        .tile, .sprite{ width:16px; height:16px; background-repeat:no-repeat; }
+        .sprite{ position:absolute; will-change: transform; }
+        .ui-box{
+            position:absolute; left:0; right:0; bottom:0; height:48px;
+            background:#fff; border:2px solid #000; padding:4px 6px;
+        }
+        .ui-caret{ position:absolute; right:6px; bottom:4px; animation: blink 600ms steps(1) infinite; }
+        @keyframes blink{ 50%{ opacity:0; } }
+ 
+    #gameContainer .text {
+        margin: 0;
+        transform: translate(0, -1px);
+        display: inline-block;
+    }
+        .pt {
+            padding-top: 8px;
+        }
+ 
+    .msgBox {
+        background-color: #FFFFFF;
+        display: inline-block;
+        margin: 8px;
+        box-shadow: 0 0 0 2px #FFFFFF, -1px -1px 0 3px #000000, 0px 0px 0 3px #000000, -1px -1px 0 4px #FFFFFF, 0 0 0 4px #FFFFFF, 0 0 0 6px #000000, 0 0 0 8px #FFFFFF;
+        position: absolute;
+    }
+        .msgBox p { margin: 0; white-space: pre-wrap; }
+ 
+</style>
+</head>
+<body>
+<div id="gameContainer">
+    <div id="gameRoot">
+        <div id="layer-bg"></div>
+        <div id="layer-sprites"></div>
+        <div id="layer-ui">
+        </div>
+    </div>
+</div>
+ 
+<script>
+    let SCALE = 1; // global scale value;
+ 
+    // Integer scaling for a 160x144 logical surface
+    function fitGameToWindow() {
+        const baseW = 160, baseH = 144;
+        const w = window.innerWidth, h = window.innerHeight;
+ 
+        // Max integer scale that fits
+        SCALE = Math.max(1, Math.floor(Math.min(w / baseW, h / baseH)));
+        if (SCALE < 1) SCALE = 1; // never downscale below 1x (matches your requirement)
+ 
+        $('#gameContainer').css({
+            width: `${baseW}px`,
+            height: `${baseH}px`,
+            transform: `scale(${SCALE})`,
+            transformOrigin: `center center`
+        });
+    }
+ 
+    // Run once and on resize (with a tiny debounce)
+    let _resizeTimer = null;
+    $(window).on('resize', function () {
+        if (_resizeTimer) clearTimeout(_resizeTimer);
+        _resizeTimer = setTimeout(fitGameToWindow, 50);
+    });
+    $(fitGameToWindow);
+</script>
+ 
+<!-- order matters: load the class, then your code -->
+<script src="scr/joypad.global.js"></script>
+<script src="scr/sceneManager.global.js"></script>
+<script src="scr/renderer.global.js"></script>
+<script src="scr/textbox.global.js"></script>
+<script src="scr/main.js"></script>
+</body>
+</html>
