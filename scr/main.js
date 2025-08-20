@@ -1,55 +1,95 @@
-/**********************************************
- * HyperMon - main.js (minimal bootstrap)
- * Uses: Joypad, SceneManager, Renderer, TextBox
- **********************************************/
-
-(function () {
-  // --- Instances ---
-  const joypad = new Joypad({
-    // keep defaults; we only need pressed('a') each frame
-  });
-  const scenes = new SceneManager();
-
-  // Init renderer/layers
-  Renderer.init();
-
-  // Create the textbox in the UI layer
-  const textbox = new TextBox({
-    container: document.getElementById('layer-ui')
-    // geometry uses defaults from textbox.global.js
-  });
-
-
-  // Show the test box on load
-  textbox.show(`Press "Z" to advance the text!\n\nHello WARZYRAPTOR!\nThis is a really, really cool message showing what I've made so far!\n\n...In JavaScript, no less!  This INDIGO guy?  He's insane.  Doing this all in JavaScript?  Who is that DUMB!?  Eh, whatever.  All we got is this basic text stuff, but soon we'll have a proper game to play!`);
-
-  // --- Simple game loop (60fps-ish) ---
-  let last = performance.now();
-  function loop(t) {
-    const dt = (t - last) / 1000;
-    last = t;
-
-    // Poll input once per frame
-    joypad.poll();
-
-    // Advance text on A or Start (edge press), but only if allowed
-    if (textbox.canAdvance() && (joypad.pressed('a') || joypad.pressed('start'))) {
-      textbox.advance();
+const jp = new Joypad({ repeatDelayFrames: 12, repeatRateFrames: 3 });
+ 
+// Initialize renderer & scene system
+Renderer.init();
+const scenes = new SceneManager();
+ 
+const box = new TextBox();
+// Normal 'typing" test
+// box.show("This is a TEST MESSAGE that will be displayed...\non the screen!  And here is even more text to ensure we spill onto another page with the caret rule applied.", {speed: "MED"})
+ 
+// command test (with *WAIT:, *WAIT,100:, and *AUTO:)
+box.show(`VOLTORB used\nSCREECH!\nTARGET's*AUTO:\n DEFENSE*WAIT:*AUTO:\nharshly fell!\n*WAIT,100:That was a 100 frame wait!`)
+ 
+// Demo scenes you can delete later
+// function TitleScene(){
+//     const box = new TextBox();
+//     this.onEnter = function(){ box.show("Hello! Press START to begin.  Either dismiss the textbox or press START now.", { pt: true }); };
+//     this.update  = function(dt){
+//         box.update();
+//         if (jp.pressed('start')) scenes.replace(new OverworldScene());
+//         if (jp.pressed('a')) box.advance();
+//     };
+//     this.draw    = function(){ /* DOM is already updated by components */ };
+//     this.onExit  = function(){ box.hide(); };
+// }
+// 
+// function OverworldScene(){
+//     // super-minimal: fill tiles with a single metatile index
+//     const grass = Array(90).fill(5);
+//     const pid = 'player';
+//     let px = 64, py = 64, frame = 0, t = 0;
+// 
+//     this.onEnter = function(){
+//         Renderer.drawTiles(grass);
+//         Renderer.addSprite(pid, frame, px, py);
+//     };
+//     this.update = function(dt){
+//         t += dt;
+//         // input: one step per repeat for grid movement
+//         const step = 16;
+//         if (jp.pressed('up')    || jp.repeat('up'))    py = Math.max(0, py - step);
+//         else if (jp.pressed('down')  || jp.repeat('down'))  py = Math.min(128, py + step);
+//         else if (jp.pressed('left')  || jp.repeat('left'))  px = Math.max(0, px - step);
+//         else if (jp.pressed('right') || jp.repeat('right')) px = Math.min(144, px + step);
+//         frame = (frame + 1) % 4;
+//         Renderer.updateSprite(pid, frame, px, py);
+//         if (jp.pressed('start')) scenes.replace(new TitleScene());
+//     };
+//     this.draw = function(){};
+//     this.onExit = function(){ Renderer.removeSprite(pid); };
+// }
+// 
+// scenes.replace(new TitleScene());
+ 
+// simple fixed-step loop without modules
+let acc = 0, last = performance.now();
+const STEP = 1000/60;
+const MAX_FRAME = 250;
+const MAX_STEPS = 5;
+ 
+function update(dt){
+    box.update();
+ 
+    if ((jp.pressed('a') || jp.pressed('start')) && box.canAdvance()) {
+        box.advance();
     }
-
-    // Update textbox (handles the two-phase scroll)
-    textbox.update();
-
-    // If you add scenes later:
-    // scenes.update(dt);
-    // scenes.draw();
-
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
-
-  // Expose for quick debugging in console (optional)
-  window.HyperMon = Object.assign(window.HyperMon || {}, {
-    joypad, scenes, textbox
-  });
-})();
+ 
+    scenes.update(dt);
+}
+ 
+function draw() {
+    // dom updates if separate renderer
+    scenes.draw();
+}
+ 
+function frame(now){
+    let delta = now - last; last = now;
+ 
+    // clamp huge pauses to keep loop stable
+    if (delta > MAX_FRAME) delta = MAX_FRAME;
+ 
+    acc += delta;
+ 
+    // catch up
+    let steps = 0;
+    while (acc >= STEP && steps < MAX_STEPS) { jp.poll(); update(STEP/1000); acc -= STEP; steps++; }
+ 
+    draw();
+    requestAnimationFrame(frame);
+}
+ 
+// safety: clear input when window loses focus so keys don't get “stuck”
+addEventListener('blur', () => { acc = 0; last = performance.now(); });
+ 
+requestAnimationFrame(frame);
