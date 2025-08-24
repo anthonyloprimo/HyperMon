@@ -44,7 +44,6 @@
     const DEFAULT_MARGIN = 8;
     const SCROLL_STEP_FRAMES = 8; // TODO: Verify against pokered disassembly to determine exact amount of frames to scroll text.
     const DEFAULT_WAIT_FRAMES = 45; // TODO: Verify against pokered disassembly
-<<<<<<< HEAD
     // const TYPE_SPEEDS = {
     //     SLOW: 1,
     //     MED:  3,
@@ -57,13 +56,6 @@
     };
  
     g.EngineSettings = g.EngineSettings || { textSpeedDefault: 'MED'};
-=======
-    const TYPE_SPEEDS = {
-        SLOW: 1,
-        MED: 2,
-        FAST: 999
-    };
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
  
     // --- Tokenizer ---------------------------------------------------------
     // WORD(text), SP(count), NL, CMD({name, n})
@@ -84,11 +76,7 @@
             // Commands: *WAIT:  *WAIT,NN:  *AUTO:
             if (ch === "*") {
                 const cmd = tryParseCommand(s, i);
-<<<<<<< HEAD
                 if (cmd) { tokens.push({ t: "CMD", name: cmd.name, n: cmd.n, arg: cmd.arg }); i = cmd.nextIndex; continue; }
-=======
-                if (cmd) { tokens.push({ t: "CMD", name: cmd.name, n: cmd.n }); i = cmd.nextIndex; continue; }
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
                 // If a command isn't valid, treat '*' as normal text
             }
  
@@ -141,7 +129,6 @@
         // *AUTO: - automatically invokes an "A" button press and advances the text without human input.
         if (body === "AUTO") return { name: "AUTO", n: null, nextIndex: colon + 1 };
  
-<<<<<<< HEAD
         // *TSPD,spd|int: - immediately alters the text speed being printed at the point this command is parsed.
         if (body.startsWith("TSPD,")) {
             const arg = body.slice(5);  // "SLOW" | "MED" | "FAST" | "DEF" | int (number as string)
@@ -149,8 +136,6 @@
             return { name: "TSPD", arg, nextIndex: colon + 1};
         }
  
-=======
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
         return null;
     }
  
@@ -281,11 +266,7 @@
             const t = stream[i];
  
             if (t.t === "CMD") {
-<<<<<<< HEAD
                 events.push({ type: "cmd", name: t.name, n: t.n, arg: t.arg });
-=======
-                events.push({ type: "cmd", name: t.name, n: t.n });
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
                 i++;
                 continue;
             }
@@ -334,83 +315,17 @@
             }
  
             // Unknown token
+            // Unknown token
             i++;
         }
  
         return { text: out, next: i, events };
-<<<<<<< HEAD
     }
  
     // For caret peek (ignore cmd content; just mutate until line width filled)
     function measureTakeLine(stream, maxWidth) {
         let width = 0;
         let i = 0;
-=======
-    }
- 
-    // For caret peek (ignore cmd content; just mutate until line width filled)
-    function measureTakeLine(stream, maxWidth) {
-        let width = 0;
-        let i = 0;
- 
-        // skip leading spaces
-        while (i < stream.length && stream[i].t === "SP") i++;
- 
-        while (i < stream.length) {
-            const t = stream[i];
- 
-            if (t.t === "CMD") { i++; continue; }
-            if (t.t === "NL")  { i++; break; }
- 
-            if (t.t === "WORD") {
-                const wlen = t.text.length;
-                const rem = maxWidth - width;
-                if (wlen <= rem) { width += wlen; i++; continue; }
-                if (wlen > maxWidth) {
-                    if (width === 0) {
-                        // consume maxWidth chars
-                        if (t.text.length > maxWidth) {
-                            t.text = t.text.slice(maxWidth); // leave remainder
-                        } else {
-                            i++;
-                        }
-                        width = maxWidth;
-                    }
-                    break;
-                }
-                break;
-            }
- 
-            if (t.t === "SP") {
-                if (width === 0) { i++; continue; }
-                const rem = maxWidth - width;
-                if (rem <= 0) break;
-                if (t.n <= rem) { width += t.n; i++; }
-                else { t.n -= rem; width += rem; }
-                if (width >= maxWidth) break;
-                continue;
-            }
- 
-            i++;
-        }
-        // return not needed; we just mutated
-    }
- 
-    function rtrim(s) { return s.replace(/[ ]+$/g, ""); }
-    function deepSlice(arr, start) {
-        const out = [];
-        for (let i = start; i < arr.length; i++) {
-            const t = arr[i];
-            if (t.t === "WORD") out.push({ t: "WORD", text: t.text });
-            else if (t.t === "SP") out.push({ t: "SP", n: t.n });
-            else if (t.t === "NL") out.push({ t: "NL" });
-            else if (t.t === "CMD") out.push({ t: "CMD", name: t.name, n: t.n });
-        }
-        return out;
-    }
-    // (helper used in a previous draft; no-op now)
-    function idxOf(_arr) { return 0; }
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
  
         // skip leading spaces
         while (i < stream.length && stream[i].t === "SP") i++;
@@ -495,6 +410,7 @@
         el.appendChild(p);
  
         // Caret glyph
+        // Caret glyph
         const caret = document.createElement("div");
         caret.textContent = "▼";
         caret.style.position = "absolute";
@@ -504,11 +420,7 @@
         caret.style.fontSize = "8px";
         caret.style.lineHeight = "8px";
         caret.style.letterSpacing = "0";
-<<<<<<< HEAD
-        caret.style.animation = "blink 600ms steps(1) infinite";
-=======
         caret.style.animation = "blink 1000ms steps(1) infinite";  // On + off blink takes 1 second
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
         caret.style.display = "none";
         el.appendChild(caret);
  
@@ -536,14 +448,11 @@
         this._autoPending = false;  // set by *AUTO:
         this._readyForAdvance = false; // true when page fully typed and no AUTO pending
  
-<<<<<<< HEAD
         this._speedPreset = null;  // SLOW | MED | FAST | null
         this._speedFast   = false;  // true if FAST
         this._framesPerCharBase = FRAMES_PER_CHAR.MED; // numeric base (ignored when FAST)
         this._speedHeld = false;  // updated each update() call
  
-=======
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
         this._positionCaret();
     }
  
@@ -555,7 +464,6 @@
         this.caretEl.style.top  = (h - 8) + "px";
     };
  
-<<<<<<< HEAD
     TextBox.prototype._applySpeed = function(spec) {
         const conf = normalizeSpeedSpec(spec);
         this._speedFast = !!conf.fast;
@@ -582,12 +490,6 @@
         const want = (opts.speed != null ? opts.speed : g.EngineSettings.textSpeedDefault);
         this._applySpeed(want);
         // if (opts.speed) this.speed = opts.speed;
-=======
-    // ----- Public API -----
-    TextBox.prototype.show = function (text, opts) {
-        opts = opts || {};
-        if (opts.speed) this.speed = opts.speed;
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
  
         this.pages = layoutPagesDialog(text);
         this.pageIndex = 0;
@@ -618,7 +520,6 @@
     };
  
     // Update handles typing or two-step scroll
-<<<<<<< HEAD
     TextBox.prototype.update = function (input = null) {
         if (!this.visible) return;
  
@@ -661,47 +562,6 @@
             this._autoPending = false;
         }
     };
-=======
-TextBox.prototype.update = function () {
-    if (!this.visible) return;
- 
-    // --- scroll phases (block typing while scrolling) ---
-    if (this._scrollPhase === "SCROLL1") {
-        if (this._phaseFrames > 0) { this._phaseFrames--; return; }
-        this._renderScrollPhase2();
-        this._scrollPhase = "SCROLL2";
-        this._phaseFrames = SCROLL_STEP_FRAMES;
-        return;
-    }
-    if (this._scrollPhase === "SCROLL2") {
-        if (this._phaseFrames > 0) { this._phaseFrames--; return; }
-        this.pageIndex++;
-        this._scrollPhase = "PAGE";
-        this._autoPending = false;
-        this._readyForAdvance = false;
-        this._startPageTyping(false);
-        return;
-    }
- 
-    // --- typing phase (includes *WAIT: pauses) ---
-    if (this._typing) {
-        this._tickTypewriter();  // this is the ONLY place we render during typing
-    } else {
-        // --- idle page: DO NOT re-stamp text here ---
-        // The page was stamped once when typing finished.
-        // Only toggle caret while idle.
-        const pg = this.pages[this.pageIndex];
-        this._setCaretVisible(!!pg.caret && !this._autoPending);
-    }
- 
-    // --- AUTO after page completes ---
-    if (!this._typing && this._autoPending) {
-        if (this.pageIndex + 1 < this.pages.length) this._startScroll();
-        else this.hide({ destroy: true });
-        this._autoPending = false;
-    }
-};
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
  
     TextBox.prototype.canAdvance = function () {
         return this.visible && this._scrollPhase === "PAGE" && !this._typing && this._readyForAdvance;
@@ -711,6 +571,7 @@ TextBox.prototype.update = function () {
         // Only allow A when page is idle and ready (no typing, no pauses)
         if (!this.canAdvance()) return;
  
+        // more pages? start two-step scroll
         if (this.pageIndex + 1 < this.pages.length) {
             this._startScroll();
         } else {
@@ -744,7 +605,6 @@ TextBox.prototype.update = function () {
         // Flatten events: list of {type:'text', text} and {type:'cmd', name, n}
         // Cursor: evIdx + charIdx into current text event
         return {
-<<<<<<< HEAD
             line: lineNum,          // 1 or 2; 'done' when finished
             events: events.slice(),
             evIdx: 0,
@@ -753,24 +613,11 @@ TextBox.prototype.update = function () {
             full: fullText,
             pause: 0,               // frames remaining for WAIT
             framesUntilNextChar: 0  // Cadence counter
-=======
-            line: lineNum,        // 1 or 2; 'done' when finished
-            events: events.slice(),
-            evIdx: 0,
-            charIdx: 0,
-            buffer: "",           // what we've revealed for this line
-            full: fullText,
-            pause: 0              // frames remaining for WAIT
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
         };
     };
  
     TextBox.prototype._tickTypewriter = function () {
-<<<<<<< HEAD
         // const rate = TYPE_SPEEDS[this.speed] || TYPE_SPEEDS.MED;
-=======
-        const rate = TYPE_SPEEDS[this.speed] || TYPE_SPEEDS.MED;
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
         const t = this._typing;
  
         // If paused due to WAIT, count down
@@ -785,10 +632,6 @@ TextBox.prototype.update = function () {
                 // move to line 2 typing
                 const pg = this.pages[this.pageIndex];
                 this._typing = this._makeTypingState(2, pg.l2.events, pg.l2.text);
-<<<<<<< HEAD
-=======
-                return;
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
             } else {
                 // finished line 2 → page idle
                 this._typing = null;
@@ -799,7 +642,6 @@ TextBox.prototype.update = function () {
                 // Ready for A (unless AUTO is pending)
                 this._readyForAdvance = true;
                 this._setCaretVisible(!!this.pages[this.pageIndex].caret);
-<<<<<<< HEAD
             }
             return;
         }
@@ -859,50 +701,12 @@ TextBox.prototype.update = function () {
                 this._applyLineBuffer(t.line, t.buffer);
                 t.framesUntilNextChar = this._effectiveFramesPerChar();
             }
-=======
-                return;
-            }
-        }
- 
-        const ev = t.events[t.evIdx];
- 
-        if (ev.type === "cmd") {
-            if (ev.name === "WAIT") {
-                t.pause = (ev.n != null ? ev.n : DEFAULT_WAIT_FRAMES);
-            } else if (ev.name === "AUTO") {
-                // queue auto-advance when page completes
-                this._autoPending = true;
-                // caret should remain hidden
-                this._setCaretVisible(false);
-            }
-            t.evIdx++;
-            return;
-        }
- 
-        if (ev.type === "text") {
-            if (this.speed === "FAST") {
-                // dump the rest of this text chunk
-                t.buffer += ev.text.slice(t.charIdx);
-                t.charIdx = ev.text.length;
-            } else {
-                const remaining = ev.text.length - t.charIdx;
-                const step = Math.min(rate, remaining);
-                t.buffer += ev.text.slice(t.charIdx, t.charIdx + step);
-                t.charIdx += step;
-            }
- 
-            // Render partial buffer for this line
-            this._applyLineBuffer(t.line, t.buffer);
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
  
             if (t.charIdx >= ev.text.length) {
                 // move to next event
                 t.evIdx++;
                 t.charIdx = 0;
-<<<<<<< HEAD
                 t.framesUntilNextChar = 0;
-=======
->>>>>>> e16cc03c03ae29576b39af5e2a05834095be965f
             }
             return;
         }
