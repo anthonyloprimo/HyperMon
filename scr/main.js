@@ -9,8 +9,7 @@ const box = new TextBox();
 // box.show("This is a TEST MESSAGE that will be displayed...\non the screen!  And here is even more text to ensure we spill onto another page with the caret rule applied.", {speed: "SLOW"})
  
 // command test (with *WAIT:, *WAIT,100:, and *AUTO:)
-box.show(`VOLTORB used\nSCREECH!\nTARGET's*AUTO:\n DEFENSE*WAIT:*AUTO:\nharshly fell!\n*WAIT,100:That was a 100 frame wait!`)
- 
+box.show(`VOLTORB used\nSCREECH!\nTARGET's*AUTO:\n DEFENSE*WAIT:*AUTO:\nharshly fell!\n*WAIT,100:That was a 100 frame wait!`);
 // Demo scenes you can delete later
 // function TitleScene(){
 //     const box = new TextBox();
@@ -60,7 +59,7 @@ const MAX_STEPS = 5;
  
 function update(dt){
     // consider A or B held if either is pressed/repeating this frame...
-    const speedHeld = (jp.pressed('a') || jp.repeat('a') || jp.pressed('b') || jp.repeat('b'));
+    const speedHeld = (jp.pressed('a') || jp.held('a') || jp.pressed('b') || jp.held('b'));
     box.update( {speedHeld} );
  
     if ((jp.pressed('a') || jp.pressed('b') || jp.pressed('start')) && box.canAdvance()) {

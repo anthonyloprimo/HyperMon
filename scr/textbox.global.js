@@ -42,17 +42,17 @@
     const SCREEN_W = 160;
     const SCREEN_H = 144;
     const DEFAULT_MARGIN = 8;
-    const SCROLL_STEP_FRAMES = 8; // TODO: Verify against pokered disassembly to determine exact amount of frames to scroll text.
-    const DEFAULT_WAIT_FRAMES = 45; // TODO: Verify against pokered disassembly
+    const SCROLL_STEP_FRAMES = 5; // pokered disassembly calls ScrollTextUpOneLine:: and uses .WaitFrame 2 times, 5 frames each (total of 10 frames for a full 2-line scroll)
+    const DEFAULT_WAIT_FRAMES = 30; // pokered disassembly waits 30 frames - half a second roughly - unless a or b is already held (and it's skipped)
     // const TYPE_SPEEDS = {
     //     SLOW: 1,
     //     MED:  3,
     //     FAST: 999
     // };
     const FRAMES_PER_CHAR = {
-        SLOW: 3,  // TODO: verify against pokered disassembly
-        MED:  1   // TODO: verify against pokered disassembly
-        // FAST is not specified as it's "instant" in displaying each line.
+        SLOW: 5,  // pokered disassembly uses 5 frames per character for slow text speed.
+        MED:  3   // pokered disassembly uses 3 frames per character for medium text speed.
+        // "FAST" speed is 1 frame per character in pokered disassembly.  For us it displays each line fully.
     };
  
     g.EngineSettings = g.EngineSettings || { textSpeedDefault: 'MED'};
@@ -72,13 +72,27 @@
             const ch = s[i];
  
             if (ch === "\n") { pushNL(); i++; continue; }
- 
+            
             // Commands: *WAIT:  *WAIT,NN:  *AUTO:
             if (ch === "*") {
                 const cmd = tryParseCommand(s, i);
-                if (cmd) { tokens.push({ t: "CMD", name: cmd.name, n: cmd.n, arg: cmd.arg }); i = cmd.nextIndex; continue; }
-                // If a command isn't valid, treat '*' as normal text
+                if (cmd) {
+                    tokens.push({ t: "CMD", name: cmd.name, n: cmd.n, arg: cmd.arg });
+                    i = cmd.nextIndex;
+                    continue;
+                }
+                // Not a valid command: treat the whole run as literal text until space/newline
+                let j = i + 1;
+                while (j < s.length && s[j] !== " " && s[j] !== "\n") j++;
+                pushWord(s.slice(i, j)); // e.g. "*WAITa:" or "*TSDP:SLOW:"
+                i = j;
+                continue;
             }
+            // if (ch === "*") {  // old method
+            //     const cmd = tryParseCommand(s, i);
+            //     if (cmd) { tokens.push({ t: "CMD", name: cmd.name, n: cmd.n, arg: cmd.arg }); i = cmd.nextIndex; continue; }
+            //     // If a command isn't valid, treat '*' as normal text
+            // }
  
             // Spaces (preserve multiple)
             if (ch === " ") { 
@@ -104,6 +118,7 @@
     // *WAIT:         (without a number results in default frames defined via const DEFAULT_WAIT_FRAMES)
     // *WAIT,NN:      (immediately follow WAIT with a comma and integer to override DEFAULT_WAIT_FRAMES and specify frames to wait.)
     // *AUTO:         (Automatically triggers an "A" press.  Should follow a newline, or automatically force one?)
+    // *TSPD,val:     (val is SLOW, MED, FAST, DEF (default), or an integer value)
     // Must be UPPERCASE and end with ':' immediately, otherwise it's treated as text!
     function tryParseCommand(s, startIdx) {
         // starts with '*'
@@ -157,7 +172,7 @@
             if (t.t === "WORD") stream.push({ t: "WORD", text: t.text });
             else if (t.t === "SP") stream.push({ t: "SP", n: t.n });
             else if (t.t === "NL") stream.push({ t: "NL" });
-            else if (t.t === "CMD") stream.push({ t: "CMD", name: t.name, n: t.n });
+            else if (t.t === "CMD") stream.push({ t: "CMD", name: t.name, n: t.n, arg: t.arg });
         }
  
         const pages = [];
@@ -378,7 +393,7 @@
             if (t.t === "WORD") out.push({ t: "WORD", text: t.text });
             else if (t.t === "SP") out.push({ t: "SP", n: t.n });
             else if (t.t === "NL") out.push({ t: "NL" });
-            else if (t.t === "CMD") out.push({ t: "CMD", name: t.name, n: t.n });
+            else if (t.t === "CMD") out.push({ t: "CMD", name: t.name, n: t.n, arg: t.arg });
         }
         return out;
     }
@@ -476,9 +491,11 @@
     TextBox.prototype._effectiveFramesPerChar = function() {
         if (this._speedFast) return 0; // special: instant
         // “Hold to speed up” applies only when preset is SLOW
-        if (this._speedPreset === 'SLOW' && this._speedHeld) {
-            return FRAMES_PER_CHAR.MED;
-        }
+        // if (this._speedPreset === 'SLOW' && this._speedHeld) {  // old method
+        //     return FRAMES_PER_CHAR.MED;
+        // }
+        if (this._speedHeld && (this._speedPreset === "SLOW" || this._speedPreset === "MED")) return 1;
+
         return this._framesPerCharBase;
     };
  
