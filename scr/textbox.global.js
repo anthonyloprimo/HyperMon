@@ -22,19 +22,22 @@
  
             Commands are:
                 - *WAIT: Pauses the text progression for a default of 45 frames.
-                - *WAIT,nn: waits for a duration of nn frames, specified as an integer value.  *WAIT,100: will pause text for 100 frames.
+                - *WAIT,nn: waits for a duration of nn frames, specified as an integer value.  *WAIT,100: will pause text for
+                    100 frames.
                 - *AUTO: will automatically invoke an "A" button press to advance the text.
+                - *DOTS,nn: imitates TX_DOTS where every 10 frames prints a ".", as many times specified under the parameter
+                    'nn', for dramatic effect.
                 - *PAUSE,func: will indefinitely pause text progression to execute a function spoecified as a parameter.
-                               A function *must* be set otherwise it's ignored and treated as text (even if it's written as a valid command)
-                               A function written for this should always have a callback to signal the end of the command and continue text.
-                               An example of this is saving the game.  For example:
-                                   `Saving the game, do not turn off the power*PAUSE,SAVEGAME:*AUTO:${playerName} has saved the game.`
+                    - A function *must* be set otherwise it's ignored and treated as text (even if it's written as a valid command)
+                    - A function written for this should always have a callback to signal the end of the command and continue text.
+                    - An example of this is saving the game.  For example:
+                        - `Saving the game, do not turn off the power*PAUSE,SAVEGAME:*AUTO:${playerName} has saved the game.`
                                    
-                                   We display the first part of the text, pause the text engine to save the game, and when it
-                                       completes, it resumes processing the string, which includes an *AUTO: command and then displaying the text that the player has saved the game.
-                -
+                        - We display the first part of the text, pause the text engine to save the game, and when it
+                            completes, it resumes processing the string, which includes an *AUTO: command and then
+                            displaying the text that the player has saved the game.
  
-
+ 
 */
 (function (g) {
     "use strict";
@@ -44,6 +47,7 @@
     const DEFAULT_MARGIN = 8;
     const SCROLL_STEP_FRAMES = 5; // pokered disassembly calls ScrollTextUpOneLine:: and uses .WaitFrame 2 times, 5 frames each (total of 10 frames for a full 2-line scroll)
     const DEFAULT_WAIT_FRAMES = 30; // pokered disassembly waits 30 frames - half a second roughly - unless a or b is already held (and it's skipped)
+    const DOTS_WAIT_FRAMES = 10;
     // const TYPE_SPEEDS = {
     //     SLOW: 1,
     //     MED:  3,
@@ -119,6 +123,7 @@
     // *WAIT,NN:      (immediately follow WAIT with a comma and integer to override DEFAULT_WAIT_FRAMES and specify frames to wait.)
     // *AUTO:         (Automatically triggers an "A" press.  Should follow a newline, or automatically force one?)
     // *TSPD,val:     (val is SLOW, MED, FAST, DEF (default), or an integer value)
+    // *DOTS,nn:      (displays dots per 10 frames for dramatic effect, like TX_DOTS in pokered disassembly)
     // Must be UPPERCASE and end with ':' immediately, otherwise it's treated as text!
     function tryParseCommand(s, startIdx) {
         // starts with '*'
@@ -132,14 +137,13 @@
         if (!/^[A-Z][A-Z0-9,]*$/.test(body)) return null;
  
         // *WAIT: without a parameter - waits a default amount of frames.
-            if (body === "WAIT") return { name: "WAIT", n: null, nextIndex: colon + 1 };
- 
         // *WAIT,nn: 'nn' is an integer in frames to wait.
-            if (body.startsWith("WAIT,")) {
-                const nStr = body.slice(5);
-                if (!/^[0-9]+$/.test(nStr)) return null;
-                return { name: "WAIT", n: parseInt(nStr, 10), nextIndex: colon + 1 };
-            }
+        if (body === "WAIT") return { name: "WAIT", n: null, nextIndex: colon + 1 };
+        if (body.startsWith("WAIT,")) {
+            const nStr = body.slice(5);
+            if (!/^[0-9]+$/.test(nStr)) return null;
+            return { name: "WAIT", n: parseInt(nStr, 10), nextIndex: colon + 1 };
+        }
  
         // *AUTO: - automatically invokes an "A" button press and advances the text without human input.
         if (body === "AUTO") return { name: "AUTO", n: null, nextIndex: colon + 1 };
@@ -151,10 +155,20 @@
             return { name: "TSPD", arg, nextIndex: colon + 1};
         }
  
+        // *DOTS:    - displays a period (.), one by default, delay by 10 frames.
+        // *DOTS,nn: - displays 'nn' dots every 10 frames, for dramatic effect.
+        if (body === "DOTS") { return { name: "DOTS", n: 1, nextIndex: colon + 1 }; }
+        if (body.startsWith("DOTS,")) {
+            const nStr = body.slice(5);
+            if (!/^[0-9]+$/.test(nStr)) return null;
+            const count = Math.max(1, parseInt(nStr, DOTS_WAIT_FRAMES));
+            return { name: "DOTS", n: count, nextIndex: colon + 1 };
+        }
+ 
         return null;
     }
  
-    // ---------- Layout (dialog) ----------
+    // Layout
     // Overlapping windows:
     // The first page (page0) shows lines 1 and 2.  Each new 'page' reveals one new line at a time after pushing each line up (line 1 and 2, then 2 and 3, 3 and 4, etc...)
     // Caret will display if there's content after what's currently displayed
@@ -281,6 +295,27 @@
             const t = stream[i];
  
             if (t.t === "CMD") {
+                // Width-aware handling for *DOTS:/*DOTS,nn: command...
+                if (t.name === "DOTS") {
+                    const total = Math.max(1, t.n || 1);
+                    const rem = maxWidth - width;
+                    if (rem <= 0) break; // No space left so use next line for dots/elipsis.
+                    const fit = Math.min(total, rem);
+ 
+                    // Add total amount of dots to the final line of text - don't create text event asd they'll be revealed at runtime.
+                    out += ".".repeat(fit);
+                    width += fit;
+ 
+                    // Emit DOTS command for the amount that fit on the line so rimtime can pace it (10 frames each normally but A/B can skip this pause)
+                    events.push({ type: "cmd", name: "DOTS", n: fit });
+ 
+                    if (total > fit) {
+                        // put remainder on the next visual line.
+                        t.n = total = fit; break;
+                    } else { i++; continue; }
+                }
+ 
+                // remaining commands...
                 events.push({ type: "cmd", name: t.name, n: t.n, arg: t.arg });
                 i++;
                 continue;
@@ -329,7 +364,6 @@
                 continue;
             }
  
-            // Unknown token
             // Unknown token
             i++;
         }
@@ -495,11 +529,11 @@
         //     return FRAMES_PER_CHAR.MED;
         // }
         if (this._speedHeld && (this._speedPreset === "SLOW" || this._speedPreset === "MED")) return 1;
-
+ 
         return this._framesPerCharBase;
     };
  
-
+ 
     // Public API
     TextBox.prototype.show = function (text, opts) {
         opts = opts || {};
@@ -675,9 +709,42 @@
                 // caret should remain hidden
                 this._setCaretVisible(false);
             } else if (ev.name === "TSPD") {
+                // check specified speed type and update text print speed to what it is.
+                // DEF = DEFault
                 const spec = (ev.arg === "DEF" ? "DEF" : ev.arg);
                 this._applySpeed(spec);
                 t.framesUntilNextChar = 0; // speed change applies immediately
+            } else if (ev.name === "DOTS") {
+                // print '.' and wait 10 frames (skip if A/B are held), repeat n times...
+                if (t._dotsRemaining == null) {
+                    t._dotsRemaining = Math.max(1, ev.n || 1);
+                    t._dotWaiting = false;
+                }
+ 
+                if (!t._dotWaiting) {
+                    // print out a dot into buffer
+                    t.buffer += ".";
+                    this._applyLineBuffer(t.line, t.buffer);
+ 
+                    // 10 frame countdown (unless A/B is held) and continue
+                    t.pause = 10;
+                    if(this._speedHeld) { t.pause = 0; }
+                    t._dotWaiting = true; return;
+                }
+ 
+                // once pause is cleared, consume a dot 
+                t._dotWaiting = false;
+                t._dotsRemaining -= 1;
+ 
+                // if more dots, next tick will print again
+                if (t._dotsRemaining > 0) return;
+ 
+                // if no more dots, continue onwards
+                t._dotsRemaining = null;
+                t._dotWaiting = false;
+                t.evIdx++;
+                t.framesUntilNextChar = 0;
+                return;
             }
             t.evIdx++;
             return;
@@ -833,5 +900,5 @@
         return { fast: false, preset: 'MED', frames: FRAMES_PER_CHAR.MED };
     }
  
-
+ 
 })(window);
