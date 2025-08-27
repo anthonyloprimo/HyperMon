@@ -61,11 +61,11 @@
  
     g.EngineSettings = g.EngineSettings || { textSpeedDefault: 'MED'};
  
-    // --- Tokenizer ---------------------------------------------------------
+    // Tokenizer for the message in the textbox
     // WORD(text), SP(count), NL, CMD({name, n})
-    function tokenize(src) {
-        const tokens = [];
-        const s = String(src);
+    function tokenize(src) {  // Source string
+        const tokens = [];  // initialize the token array
+        const s = String(src);  // string from the source
         let i = 0;
  
         function pushWord(text) { if (text.length) tokens.push({ t: "WORD", text }); }
@@ -118,14 +118,32 @@
         return tokens;
     }
  
+
+    ///////////////////////////////////////////////////////////////////////////////////////////
+    // COMMAND REGISTRATION ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////////////////////////////
     // Strict command grammar:
-    // *WAIT:         (without a number results in default frames defined via const DEFAULT_WAIT_FRAMES)
-    // *WAIT,NN:      (immediately follow WAIT with a comma and integer to override DEFAULT_WAIT_FRAMES and specify frames to wait.)
-    // *AUTO:         (Automatically triggers an "A" press.  Should follow a newline, or automatically force one?)
-    // *TSPD,val:     (val is SLOW, MED, FAST, DEF (default), or an integer value)
-    // *DOTS,nn:      (displays dots per 10 frames for dramatic effect, like TX_DOTS in pokered disassembly)
+    // *WAIT:         - waits 30 frames before continuing textbox execution (defined via const DEFAULT_WAIT_FRAMES)
+    // *WAIT,nn:      - waits nn frames before continuing textbox execution.
+    
+    // *AUTO:         - Queues up an automatic "A" press on the next new line.  Can chain to act as single or multiple auto-increments (like SCROLL in pokered disassembly)
+    
+    // *TSPD,val:     - Changes text speed to val (SLOW, MED, FAST, DEF (default value), or an integer value). Not officially used in pokered disassembly, extra feature added for here.
+    
+    // *DOTS:         - displays a dot with 10 frames delay afterwards, like TX_DOTS in pokered disassembly
+    // *DOTS,nn:      - displays nn dots w/ 10 frames after each dot is printed for dramatic effect, like TX_DOTS in pokered disassembly
+    
+    // *SFX,ID:       - play sound efect ID while continuing textbox execution
+    // *SFX,ID,BLOCK: - play sound effect ID while "blocking" out textbox execution, halting it until sound effect finishes.
+
+    // *BGM,ID:       - play background music ID, loops by default
+    // TODO: figure out how to list and document all arguments (they can go in different orders maybe?)
+        // Arguments include FADE, LOOP, ONCE, PLAYONRETURN and/or RETURNAFTER, maybe more
+    // *STOPBGM:      - immediately stop the currently playing background music
+    // *STOPBGM,FADE; - immediately fades out and stips the currently playing background music
+
     // Must be UPPERCASE and end with ':' immediately, otherwise it's treated as text!
-    function tryParseCommand(s, startIdx) {
+    function tryParseCommand(s, startIdx) {  // s = string, startIdx = 
         // starts with '*'
         let i = startIdx + 1;
         // read until colon or end
@@ -140,9 +158,9 @@
         // *WAIT,nn: 'nn' is an integer in frames to wait.
         if (body === "WAIT") return { name: "WAIT", n: null, nextIndex: colon + 1 };
         if (body.startsWith("WAIT,")) {
-            const nStr = body.slice(5);
-            if (!/^[0-9]+$/.test(nStr)) return null;
-            return { name: "WAIT", n: parseInt(nStr, 10), nextIndex: colon + 1 };
+            const nStr = body.slice(5);  // check parameter (value after the first comma)
+            if (!/^[0-9]+$/.test(nStr)) return null;  // Ensure it's a number value only
+            return { name: "WAIT", n: parseInt(nStr, 10), nextIndex: colon + 1 }; //
         }
  
         // *AUTO: - automatically invokes an "A" button press and advances the text without human input.
@@ -164,6 +182,24 @@
             const count = Math.max(1, parseInt(nStr, DOTS_WAIT_FRAMES));
             return { name: "DOTS", n: count, nextIndex: colon + 1 };
         }
+
+        // *SFX,ID: - play SFX while continuing textbox execution.
+        // *SFX,ID,BLOCK: - play SFX while halting textbox execution, continue once completed.
+        if (body.startsWith("SFX,")) {
+            const parts = body.split(",");
+            if (parts.length < 2) return null;
+            const id = parts[1];
+            if(!/^[A-Z0-9]+%/.test(id)) return null;
+            const isBlock = parts[2] === "BLOCK";
+            return {name: "SFX", arg: id, n: isBlock ? 1 : 0, nextIndex: colon + 1};
+        }
+
+        // BGM commands...
+
+        // *STOPBGM: - immediately stop BGM, no fade.
+        // *STOPBGM,FADE: - fades BGM and then stops the music
+        if (body === "STOPBGM") return {name: "STOPBGM", arg: { fade: false }, nextIndex: colon + 1};
+        if (body === "STOPBGM,FADE") return {name: "STOPBGM", arg: { fade: true }, nextIndex: colon + 1};
  
         return null;
     }
@@ -459,7 +495,6 @@
         el.appendChild(p);
  
         // Caret glyph
-        // Caret glyph
         const caret = document.createElement("div");
         caret.textContent = "▼";
         caret.style.position = "absolute";
@@ -501,6 +536,14 @@
         this._speedFast   = false;  // true if FAST
         this._framesPerCharBase = FRAMES_PER_CHAR.MED; // numeric base (ignored when FAST)
         this._speedHeld = false;  // updated each update() call
+
+        // Audio hooks
+        this.onSfx = options.onSfx || null; // (id, {blocking, resume, skippable}) => void
+        this.onBgm = options.onBgm || null; // ({id, fade, loop, once, returnTo, stop}) => void
+
+        // Internal blocking
+        this._blockToken = null;      // {aborted:boolean}
+        this._blockFailTimer = null;  // number | null (via setTimeout)
  
         this._positionCaret();
     }
@@ -535,16 +578,15 @@
  
  
     // Public API
-    TextBox.prototype.show = function (text, opts) {
-        opts = opts || {};
+    TextBox.prototype.show = function (text, opts) {  // text = message to display with commands, opts = any custom settings such as message speed.
+        opts = opts || {};  // object with options and their values
         //Resolve speed, per-call override or global default
-        const want = (opts.speed != null ? opts.speed : g.EngineSettings.textSpeedDefault);
-        this._applySpeed(want);
-        // if (opts.speed) this.speed = opts.speed;
+        const want = (opts.speed != null ? opts.speed : g.EngineSettings.textSpeedDefault);  // if speed is set manually use that otherwise use default (user setting)
+        this._applySpeed(want);  // apply the speed determined above
  
-        this.pages = layoutPagesDialog(text);
-        this.pageIndex = 0;
-        this.visible = true;
+        this.pages = layoutPagesDialog(text);  // determine pages based on this layout function, passing the text into it
+        this.pageIndex = 0;  // start page index at zero
+        this.visible = true;  // we're setting visible to true by default since we're showing the textbox.
  
         this._scrollPhase = "PAGE";
         this._phaseFrames = 0;
@@ -565,6 +607,8 @@
  
     TextBox.prototype.destroy = function () {
         if (this.el && this.el.parentNode) this.el.parentNode.removeChild(this.el);
+        if (this._blockToken) this._blockToken.aborted = true;
+        if (this._blockFailTimer != null) {clearTimeout(this._blockFailTimer); this._blockFailTimer = null}
         this.el = null; this.p = null; this.caretEl = null;
         this.pages = []; this.visible = false;
         this._typing = null;
@@ -714,6 +758,72 @@
                 const spec = (ev.arg === "DEF" ? "DEF" : ev.arg);
                 this._applySpeed(spec);
                 t.framesUntilNextChar = 0; // speed change applies immediately
+            } else if (ev.name === "SFX") {
+                // n === 1 → BLOCK, else non-blocking
+                const isBlock = (ev.n === 1);
+                if (!this.onSfx) {
+                    // No audio hook; just continue
+                    t.evIdx++;
+                    return;
+                }
+
+                if (!isBlock) {
+                    this.onSfx(ev.arg, { blocking: false });
+                    t.evIdx++;
+                    return;
+                }
+
+                // Blocking SFX: event-driven resume with failsafe
+                // Prepare a token so we can cancel on destroy()
+                const token = { aborted: false };
+                this._blockToken = token;
+
+                const clearFail = () => {
+                    if (this._blockFailTimer != null) { clearTimeout(this._blockFailTimer); this._blockFailTimer = null; }
+                };
+
+                const resume = () => {
+                    if (token.aborted) return;
+                    clearFail();
+                    this._blockToken = null;
+                    t.evIdx++;                     // advance past SFX
+                    t.framesUntilNextChar = 0;
+                };
+
+                // 5s failsafe: unblock even if audio never reports 'ended'
+                this._blockFailTimer = setTimeout(resume, 5000);
+
+                // Start SFX and let audio layer call resume() on 'ended'
+                this.onSfx(ev.arg, { blocking: true, resume, skippable: false });
+
+                // While blocked, we simply yield each tick until resume() runs.
+                // (We don't set t.pause so AB doesn't skip.)
+                return;
+            } else if (ev.name === "BGM") {
+                if (this.onBgm) {
+                    const id = ev.arg.id;
+                    const flags = Array.isArray(ev.arg.flags) ? ev.arg.flags : [];
+                    const have = (f) => flags.includes(f);
+
+                    this.onBgm({
+                        id,
+                        fade: have("FADE"),
+                        loop: have("LOOP"),
+                        once: have("ONCE"),
+                        returnTo: (have("ONCE") && flags.length >= 2) ? flags[1] : null,
+                        stop: false
+                    });
+                }
+                t.evIdx++;
+                return;
+            }
+
+            else if (ev.name === "STOPBGM") {
+                if (this.onBgm) {
+                    this.onBgm({ id: null, fade: !!ev.arg?.fade, loop: false, once: false, returnTo: null, stop: true });
+                }
+                t.evIdx++;
+                return;
             } else if (ev.name === "DOTS") {
                 // print '.' and wait 10 frames (skip if A/B are held), repeat n times...
                 if (t._dotsRemaining == null) {
