@@ -6,10 +6,15 @@ const scenes = new SceneManager();
  
 const box = new TextBox();
 // Normal 'typing" test
-// box.show("This is a TEST MESSAGE that will be displayed...\non the screen!  And here is even more text to ensure we spill onto another page with the caret rule applied.", {speed: "SLOW"})
+box.show("This is a TEST MESSAGE that will be displayed...\non the screen!  And here is even more text to ensure we spill onto another page with the caret rule applied.", {speed: "SLOW"})
  
 // command test (with *WAIT:, *WAIT,100:, and *AUTO:)
-box.show(`VOLTORB used\nSCREECH!\nTARGET's*AUTO:\n DEFENSE*WAIT:*AUTO:\nharshly fell!\n*WAIT,100:That was a 100 frame wait!`);
+// box.show(`VOLTORB used\nSCREECH!\nTARGET's*AUTO:\n DEFENSE*WAIT:*AUTO:\nharshly fell!\n*WAIT,100:That was a 100 frame wait!`);
+ 
+box.show(`First line.\n*AUTO:Second line.\nThird line!`,{speed:"MED"})
+box.show(`First line.\nSecond line.*AUTO:\nThird line!`,{speed:"MED"})
+ 
+// box.show(`This is a test*DOTS,3:\n ...To see if the DOTS function works!`, {speed: "MED"});
 // Demo scenes you can delete later
 // function TitleScene(){
 //     const box = new TextBox();
