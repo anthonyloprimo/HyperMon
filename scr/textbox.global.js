@@ -134,11 +134,15 @@
     // *DOTS,nn:      - displays nn dots w/ 10 frames after each dot is printed for dramatic effect, like TX_DOTS in pokered disassembly
     
     // *SFX,ID:       - play sound efect ID while continuing textbox execution
-    // *SFX,ID,BLOCK: - play sound effect ID while "blocking" out textbox execution, halting it until sound effect finishes.
+    // *SFX,ID,BLOCK: - play sound effect ID while "blocking" out textbox execution, halting it until sound effect finishes
 
-    // *BGM,ID:       - play background music ID, loops by default
-    // TODO: figure out how to list and document all arguments (they can go in different orders maybe?)
-        // Arguments include FADE, LOOP, ONCE, PLAYONRETURN and/or RETURNAFTER, maybe more
+    // *BGM,ID:       - play background music ID, without additional parameters, defaults will have the song play on loop with no fade.
+    //      FADE      - fades the currently playing background music before stopping it and playing the next track
+    //      LOOP      - the new background music will play endlessly.
+    //      ONCE      - the new background music will play once.  By default, returns to the previously playing track.
+    //          , ID2 - If an additional track ID2 is specified, play that when the new track finishes playing.  Must come right after ONCE.
+    // NOTE: if LOOP and ONCE are together, the song will always play once (never loops if there's conflicting flags)
+
     // *STOPBGM:      - immediately stop the currently playing background music
     // *STOPBGM,FADE; - immediately fades out and stips the currently playing background music
 
@@ -194,7 +198,20 @@
             return {name: "SFX", arg: id, n: isBlock ? 1 : 0, nextIndex: colon + 1};
         }
 
-        // BGM commands...
+        // *BGM,...: - play or change currently playing BGM, requires arguments listed below...
+            // ID          - track name (i.e. PALLET, ROUTE1, VIRIDIAN, etc...)
+            // LOOP        - play and loop endlessly
+            // FADE        - fades out the current track instead of suddenly stopping it.
+            // ONCE        - play once (can specify a track name in the immediately following parameter, ideally set these last).
+                // If LOOP and ONCE are both in this command, ONCE takes priority, music will NOT loop!
+        if (body.startsWith("BGM,")) {
+            const parts = body.split(",");
+            if (parts.length < 2) return null;
+            const id = parts[1];
+            if (!/^[A-Z0-9]+$/.test(id)) return null;
+            const flags = parts.slice(2); // ["FAKEFLAG", ...]
+            return { name: "BGM", arg: { id, flags }, nextIndex: colon + 1 };
+        }
 
         // *STOPBGM: - immediately stop BGM, no fade.
         // *STOPBGM,FADE: - fades BGM and then stops the music
