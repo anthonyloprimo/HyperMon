@@ -555,8 +555,9 @@
         this._speedHeld = false;  // updated each update() call
 
         // Audio hooks
-        this.onSfx = options.onSfx || null; // (id, {blocking, resume, skippable}) => void
-        this.onBgm = options.onBgm || null; // ({id, fade, loop, once, returnTo, stop}) => void
+        const globalHooks = (window.AudioHooks || null);
+        this.onSfx = (options.onSfx != null) ? options.onSfx : (globalHooks ? globalHooks.onSfx : null); // (id, {blocking, resume, skippable}) => void
+        this.onBgm = (options.onBgm != null) ? options.onBgm : (globalHooks ? globalHooks.onBgm : null); // ({id, fade, loop, once, returnTo, stop}) => void
 
         // Internal blocking
         this._blockToken = null;      // {aborted:boolean}
@@ -727,6 +728,19 @@
             framesUntilNextChar: 0  // Cadence counter
         };
     };
+
+    TextBox.prototype._callSfx = function (id, opts) {
+        // use instance hook otherwise fallback to global if it appears later
+        const fn = this.onSfx || (window.AudioHooks && window.AudioHooks.onSfx) || null;
+        if (fn) return fn(id, opts);
+        return null;
+    }
+ 
+    TextBox.prototype._callBgm = function (args) {
+        const fn = this.onBgm || (window.AudioHooks && window.AudioHooks.onBgm) || null;
+        if (fn) return fn(args);
+        return null;
+    }
  
     TextBox.prototype._tickTypewriter = function () {
         // const rate = TYPE_SPEEDS[this.speed] || TYPE_SPEEDS.MED;
@@ -778,20 +792,14 @@
             } else if (ev.name === "SFX") {
                 // n === 1 → BLOCK, else non-blocking
                 const isBlock = (ev.n === 1);
-                if (!this.onSfx) {
-                    // No audio hook; just continue
-                    t.evIdx++;
-                    return;
-                }
 
                 if (!isBlock) {
-                    this.onSfx(ev.arg, { blocking: false });
+                    this._callSfx(ev.arg, { blocking: false });
                     t.evIdx++;
                     return;
                 }
 
                 // Blocking SFX: event-driven resume with failsafe
-                // Prepare a token so we can cancel on destroy()
                 const token = { aborted: false };
                 this._blockToken = token;
 
@@ -811,33 +819,31 @@
                 this._blockFailTimer = setTimeout(resume, 5000);
 
                 // Start SFX and let audio layer call resume() on 'ended'
-                this.onSfx(ev.arg, { blocking: true, resume, skippable: false });
+                this._callSfx(ev.arg, { blocking: true, resume, skippable: false });
 
-                // While blocked, we simply yield each tick until resume() runs.
-                // (We don't set t.pause so AB doesn't skip.)
+                // While blocked, yield until resume() runs. (No t.pause → AB can't skip.)
                 return;
             } else if (ev.name === "BGM") {
-                if (this.onBgm) {
-                    const id = ev.arg.id;
-                    const flags = Array.isArray(ev.arg.flags) ? ev.arg.flags : [];
-                    const have = (f) => flags.includes(f);
+                const id = ev.arg.id;
+                const flags = Array.isArray(ev.arg.flags) ? ev.arg.flags : [];
+                const have = (f) => flags.includes(f);
 
-                    this.onBgm({
-                        id,
-                        fade: have("FADE"),
-                        loop: have("LOOP"),
-                        once: have("ONCE"),
-                        returnTo: (have("ONCE") && flags.length >= 2) ? flags[1] : null,
-                        stop: false
-                    });
-                }
+                this._callBgm({
+                    id,
+                    fade: have("FADE"),
+                    loop: have("LOOP"),
+                    once: have("ONCE"),
+                    returnTo: (have("ONCE") && flags.length >= 2) ? flags[1] : null,
+                    stop: false
+                });
+
                 t.evIdx++;
                 return;
             }
 
             else if (ev.name === "STOPBGM") {
                 if (this.onBgm) {
-                    this.onBgm({ id: null, fade: !!ev.arg?.fade, loop: false, once: false, returnTo: null, stop: true });
+                    this._callBgm({ id: null, fade: !!(ev.arg && ev.arg.fade), loop: false, once: false, returnTo: null, stop: true });
                 }
                 t.evIdx++;
                 return;

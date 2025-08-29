@@ -4,64 +4,53 @@ The SFX folder contains general sfx, and a subfolder, "cry/" that contains all 1
 | Sound Effects             | Description |
 |---------------------------|-------------|
 | SFX_59.wav                |  |
-| SFX_ARROW_TILES.wav       |  |
-| SFX_BALL_POOF.wav         |  |
-| SFX_BALL_TOSS.wav         |  |
-| SFX_CAUGHT_MON.wav        |  |
-| SFX_COLLISION.wav         |  |
-| SFX_CUT.wav               |  |
+| SFX_ARROW_TILES.wav       | Rocket hideout arrow tiles |
+| SFX_BALL_POOF.wav         | Pokeball opening sound (release, capturing) |
+| SFX_BALL_TOSS.wav         | Throwing pokeball |
+| SFX_CAUGHT_MON.wav        | Successfully caught pokemon |
+| SFX_COLLISION.wav         | Bumping against object/wall |
+| SFX_CUT.wav               | Using cut in the field |
 | SFX_CYMBAL_1.wav          |  |
 | SFX_CYMBAL_2.wav          |  |
 | SFX_CYMBAL_3.wav          |  |
-| SFX_DENIED.wav            |  |
-| SFX_DEX_PAGE_ADDED.wav    |  |
-| SFX_ENTER_PC.wav          |  |
-| SFX_FAINT_FALL.wav        |  |
-| SFX_FAINT_THUD.wav        |  |
-| SFX_FLY.wav               |  |
-| SFX_GET_ITEM_1.wav        |  |
-| SFX_GET_ITEM_2.wav        |  |
-| SFX_GET_KEY_ITEM.wav      |  |
-| SFX_GO_INSIDE.wav         |  |
-| SFX_GO_OUTSIDE.wav        |  |
-| SFX_HEAL_AILMENT.wav      |  |
-| SFX_HEAL_UP.wav           |  |
-| SFX_HEALING_MACHINE.wav   |  |
-| SFX_INTRO_CRASH.wav       |  |
-| SFX_INTRO_HIP.wav         |  |
-| SFX_INTRO_HOP.wav         |  |
-| SFX_INTRO_LUNGE.wav       |  |
-| SFX_INTRO_RAISE.wav       |  |
-| SFX_INTRO_WHOOSH.wav      |  |
-| SFX_LEDGE.wav             |  |
-| SFX_LEVEL_UP.wav          |  |
-| SFX_MUTED_SNARE_1.wav     |  |
-| SFX_MUTED_SNARE_2.wav     |  |
-| SFX_MUTED_SNARE_3.wav     |  |
-| SFX_MUTED_SNARE_4.wav     |  |
-| SFX_POISONED.wav          |  |
-| SFX_POKEDEX_RATING.wav    |  |
-| SFX_PRESS_AB.wav          |  |
-| SFX_PURCHASE.wav          |  |
-| SFX_PUSH_BOULDER.wav      |  |
-| SFX_RUN.wav               |  |
-| SFX_SAFARI_ZONE_PA.wav    |  |
-| SFX_SAVE.wav              |  |
+| SFX_DENIED.wav            | Victory road badge checks |
+| SFX_DEX_PAGE_ADDED.wav    | Pokemon data added to pokedex |
+| SFX_TURN_ON_PC.wav        | Turning on PC |
+| SFX_ENTER_PC.wav          | Entering a PC system |
+| SFX_TURN_OFF_PC.wav       | Leaving the PC menu |
+| SFX_FAINT_FALL.wav        | Part 1 of fainting sfx |
+| SFX_FAINT_THUD.wav        | Part 2 of fainting sfx (pays about haflway after the fall sfx) |
+| SFX_FLY.wav               | SFX when using fly |
+| SFX_GET_ITEM_1.wav        | Normal item obtaining |
+| SFX_GET_ITEM_2.wav        | Finding hidden item |
+| SFX_GET_KEY_ITEM.wav      | Key item obtained |
+| SFX_GO_INSIDE.wav         | Entering an indoor area from outside |
+| SFX_GO_OUTSIDE.wav        | Leaving an indoor area to the outside |
+| SFX_HEAL_AILMENT.wav      | Other healing items (status cures) |
+| SFX_HEAL_UP.wav           | Use potion on pokemon screen |
+| SFX_HEALING_MACHINE.wav   | Placing a pokeball on the healing machine in a pokemon center |
+| SFX_INTRO_CRASH.wav       | Pokemon logo falls into place for title |
+| SFX_INTRO_HIP.wav         | Nidorino/jigglypuff jump 1 (alternates w/ 2) |
+| SFX_INTRO_HOP.wav         | Nidorino/jigglypuff jump 2 (alternates w/ 1) |
+| SFX_INTRO_LUNGE.wav       | Nidorino attack |
+| SFX_INTRO_RAISE.wav       | Gengar Strike |
+| SFX_INTRO_WHOOSH.wav      | Version info slide in (Red Version/Blue Version) |
+| SFX_LEDGE.wav             | Jump down from ledge |
+| SFX_LEVEL_UP.wav          | Level up |
+| SFX_POISONED.wav          | Poison sfx when walking |
+| SFX_POKEDEX_RATING.wav    | Pokedex rating jingle |
+| SFX_PRESS_AB.wav          | Pressing A or B for the cursor |
+| SFX_PURCHASE.wav          | Buying an item |
+| SFX_PUSH_BOULDER.wav      | Using strength to push a boulder |
+| SFX_RUN.wav               | SFX plays for "Got away safely!" in battle |
+| SFX_SAFARI_ZONE_PA.wav    | "Your safari game is over!" sfx |
+| SFX_SAVE.wav              | Plays when save complete |
 | SFX_SHOOTING_STAR.wav     |  |
 | SFX_SHRINK.wav            |  |
 | SFX_SILPH_SCOPE.wav       |  |
 | SFX_SLOTS_NEW_SPIN.wav    |  |
 | SFX_SLOTS_REWARD.wav      |  |
 | SFX_SLOTS_STOP_WHEEL.wav  |  |
-| SFX_SNARE_1.wav           |  |
-| SFX_SNARE_2.wav           |  |
-| SFX_SNARE_3.wav           |  |
-| SFX_SNARE_4.wav           |  |
-| SFX_SNARE_5.wav           |  |
-| SFX_SNARE_6.wav           |  |
-| SFX_SNARE_7.wav           |  |
-| SFX_SNARE_8.wav           |  |
-| SFX_SNARE_9.wav           |  |
 | SFX_SS_ANNE_HORN.wav      |  |
 | SFX_START_MENU.wav        |  |
 | SFX_SWAP.wav              |  |
@@ -72,9 +61,5 @@ The SFX folder contains general sfx, and a subfolder, "cry/" that contains all 1
 | SFX_TELEPORT_EXIT_2.wav   |  |
 | SFX_TINK.wav              |  |
 | SFX_TRADE_MACHINE.wav     |  |
-| SFX_TRIANGLE_1.wav        |  |
-| SFX_TRIANGLE_2.wav        |  |
-| SFX_TRIANGLE_3.wav        |  |
-| SFX_TURN_OFF_PC.wav       |  |
-| SFX_TURN_ON_PC.wav        |  |
 | SFX_WITHDRAW_DEPOSIT.wav  |  |
+

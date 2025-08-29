@@ -11,8 +11,11 @@ box.show("This is a TEST MESSAGE that will be displayed...\non the screen!  And 
 // command test (with *WAIT:, *WAIT,100:, and *AUTO:)
 // box.show(`VOLTORB used\nSCREECH!\nTARGET's*AUTO:\n DEFENSE*WAIT:*AUTO:\nharshly fell!\n*WAIT,100:That was a 100 frame wait!`);
  
-box.show(`First line.\n*AUTO:Second line.\nThird line!`,{speed:"MED"})
-box.show(`First line.\nSecond line.*AUTO:\nThird line!`,{speed:"MED"})
+// auto scroll test
+// box.show(`First line.\n*AUTO:Second line.\nThird line!`,{speed:"MED"})
+
+// music test
+box.show(`Now entering Pallet Town! *BGM,PALLET: Music should be playing now!`,{speed:"SLOW"})
  
 // box.show(`This is a test*DOTS,3:\n ...To see if the DOTS function works!`, {speed: "MED"});
 // Demo scenes you can delete later
