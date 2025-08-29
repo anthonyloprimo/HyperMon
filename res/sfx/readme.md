@@ -10,9 +10,6 @@ The SFX folder contains general sfx, and a subfolder, "cry/" that contains all 1
 | SFX_CAUGHT_MON.wav        | Successfully caught pokemon |
 | SFX_COLLISION.wav         | Bumping against object/wall |
 | SFX_CUT.wav               | Using cut in the field |
-| SFX_CYMBAL_1.wav          |  |
-| SFX_CYMBAL_2.wav          |  |
-| SFX_CYMBAL_3.wav          |  |
 | SFX_DENIED.wav            | Victory road badge checks |
 | SFX_DEX_PAGE_ADDED.wav    | Pokemon data added to pokedex |
 | SFX_TURN_ON_PC.wav        | Turning on PC |
@@ -45,21 +42,21 @@ The SFX folder contains general sfx, and a subfolder, "cry/" that contains all 1
 | SFX_RUN.wav               | SFX plays for "Got away safely!" in battle |
 | SFX_SAFARI_ZONE_PA.wav    | "Your safari game is over!" sfx |
 | SFX_SAVE.wav              | Plays when save complete |
-| SFX_SHOOTING_STAR.wav     |  |
-| SFX_SHRINK.wav            |  |
-| SFX_SILPH_SCOPE.wav       |  |
+| SFX_SHOOTING_STAR.wav     | Game Freak logo sfx |
+| SFX_SHRINK.wav            | Plays when player shrinks at start of game after intro |
+| SFX_SILPH_SCOPE.wav       | When revealing a pokemon |
 | SFX_SLOTS_NEW_SPIN.wav    |  |
 | SFX_SLOTS_REWARD.wav      |  |
 | SFX_SLOTS_STOP_WHEEL.wav  |  |
-| SFX_SS_ANNE_HORN.wav      |  |
-| SFX_START_MENU.wav        |  |
-| SFX_SWAP.wav              |  |
-| SFX_SWITCH.wav            |  |
+| SFX_SS_ANNE_HORN.wav      | Plays when SS Anne is leaving |
+| SFX_START_MENU.wav        | Opening the start menu |
+| SFX_SWAP.wav              | Used when swapping pokemon (single sound, plays twice) |
+| SFX_SWITCH.wav            | Pressing a button/switch |
 | SFX_TELEPORT_ENTER_1.wav  |  |
 | SFX_TELEPORT_ENTER_2.wav  |  |
 | SFX_TELEPORT_EXIT_1.wav   |  |
 | SFX_TELEPORT_EXIT_2.wav   |  |
 | SFX_TINK.wav              |  |
 | SFX_TRADE_MACHINE.wav     |  |
-| SFX_WITHDRAW_DEPOSIT.wav  |  |
+| SFX_WITHDRAW_DEPOSIT.wav  | Withdraw/deposit items from player's PC |
 

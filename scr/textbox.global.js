@@ -118,7 +118,7 @@
         return tokens;
     }
  
-
+ 
     ///////////////////////////////////////////////////////////////////////////////////////////
     // COMMAND REGISTRATION ///////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////////////////////////////
@@ -135,17 +135,17 @@
     
     // *SFX,ID:       - play sound efect ID while continuing textbox execution
     // *SFX,ID,BLOCK: - play sound effect ID while "blocking" out textbox execution, halting it until sound effect finishes
-
+ 
     // *BGM,ID:       - play background music ID, without additional parameters, defaults will have the song play on loop with no fade.
     //      FADE      - fades the currently playing background music before stopping it and playing the next track
     //      LOOP      - the new background music will play endlessly.
     //      ONCE      - the new background music will play once.  By default, returns to the previously playing track.
     //          , ID2 - If an additional track ID2 is specified, play that when the new track finishes playing.  Must come right after ONCE.
     // NOTE: if LOOP and ONCE are together, the song will always play once (never loops if there's conflicting flags)
-
+ 
     // *STOPBGM:      - immediately stop the currently playing background music
     // *STOPBGM,FADE; - immediately fades out and stips the currently playing background music
-
+ 
     // Must be UPPERCASE and end with ':' immediately, otherwise it's treated as text!
     function tryParseCommand(s, startIdx) {  // s = string, startIdx = 
         // starts with '*'
@@ -186,18 +186,18 @@
             const count = Math.max(1, parseInt(nStr, DOTS_WAIT_FRAMES));
             return { name: "DOTS", n: count, nextIndex: colon + 1 };
         }
-
+ 
         // *SFX,ID: - play SFX while continuing textbox execution.
         // *SFX,ID,BLOCK: - play SFX while halting textbox execution, continue once completed.
         if (body.startsWith("SFX,")) {
             const parts = body.split(",");
             if (parts.length < 2) return null;
             const id = parts[1];
-            if(!/^[A-Z0-9]+%/.test(id)) return null;
+            if(!/^[A-Z0-9]+$/.test(id)) return null;
             const isBlock = parts[2] === "BLOCK";
             return {name: "SFX", arg: id, n: isBlock ? 1 : 0, nextIndex: colon + 1};
         }
-
+ 
         // *BGM,...: - play or change currently playing BGM, requires arguments listed below...
             // ID          - track name (i.e. PALLET, ROUTE1, VIRIDIAN, etc...)
             // LOOP        - play and loop endlessly
@@ -212,7 +212,7 @@
             const flags = parts.slice(2); // ["FAKEFLAG", ...]
             return { name: "BGM", arg: { id, flags }, nextIndex: colon + 1 };
         }
-
+ 
         // *STOPBGM: - immediately stop BGM, no fade.
         // *STOPBGM,FADE: - fades BGM and then stops the music
         if (body === "STOPBGM") return {name: "STOPBGM", arg: { fade: false }, nextIndex: colon + 1};
@@ -254,7 +254,7 @@
                 if (t.t === "WORD") return true;
                 if (t.t === "NL")   return true;
                 if (t.t === "SP" && t.n > 0) return true;
-                // CMD alone doesn't constitute content
+                if (t.t === "CMD") return true;
             }
             return false;
         }
@@ -489,6 +489,12 @@
  
     // TextBox
     function TextBox(options) {
+        /* TEXTBOX OPTIONS
+                When specifying information here, values are optional.  By default, a textbox will appear
+                at the bottom of the screen, full width, with a margin of 8 pixels, and a height of 32 pixels (4 rows of 8px text).
+ 
+                left/top/width/height is specified in pixels.  Be sure to specify them in multiples of 8 for best results.
+         */
         options = options || {};
         this.container = options.container || document.getElementById("layer-ui") || document.body;
  
@@ -527,6 +533,9 @@
  
         this.container.appendChild(el);
  
+        // Parallel execution flag
+        this.parallel = !!options.parallel; // if true, allows multiple textboxes to execute at once.  Default is false.
+ 
         // Public refs
         this.el = el;
         this.p  = p;
@@ -553,17 +562,23 @@
         this._speedFast   = false;  // true if FAST
         this._framesPerCharBase = FRAMES_PER_CHAR.MED; // numeric base (ignored when FAST)
         this._speedHeld = false;  // updated each update() call
-
+ 
         // Audio hooks
         const globalHooks = (window.AudioHooks || null);
         this.onSfx = (options.onSfx != null) ? options.onSfx : (globalHooks ? globalHooks.onSfx : null); // (id, {blocking, resume, skippable}) => void
         this.onBgm = (options.onBgm != null) ? options.onBgm : (globalHooks ? globalHooks.onBgm : null); // ({id, fade, loop, once, returnTo, stop}) => void
-
+ 
         // Internal blocking
         this._blockToken = null;      // {aborted:boolean}
         this._blockFailTimer = null;  // number | null (via setTimeout)
  
         this._positionCaret();
+    }
+ 
+    TextBox.prototype.handleInput = function ({jp}) {
+        if ((jp.pressed('a') || jp.pressed('b') || jp.pressed('start')) && this.canAdvance()) {
+            this.advanceFromUser();
+        }
     }
  
     TextBox.prototype._positionCaret = function () {
@@ -598,6 +613,10 @@
     // Public API
     TextBox.prototype.show = function (text, opts) {  // text = message to display with commands, opts = any custom settings such as message speed.
         opts = opts || {};  // object with options and their values
+ 
+        // parallel override
+        if (opts.parallel != null) this.parallel = !!opts.parallel;
+ 
         //Resolve speed, per-call override or global default
         const want = (opts.speed != null ? opts.speed : g.EngineSettings.textSpeedDefault);  // if speed is set manually use that otherwise use default (user setting)
         this._applySpeed(want);  // apply the speed determined above
@@ -613,14 +632,17 @@
  
         this.el.style.display = "inline-block";
  
+        if (window.FocusManager) FocusManager.push(this);
+ 
         // Start typing: first page types L1 then L2
         this._startPageTyping(/*firstPage=*/true);
     };
  
     TextBox.prototype.hide = function (opts) {
-        if (opts && opts.destroy) return this.destroy();
         this.visible = false;
         this.el.style.display = "none";
+        FocusManager.pop(this);
+        if (opts && opts.destroy) return this.destroy();
     };
  
     TextBox.prototype.destroy = function () {
@@ -635,6 +657,14 @@
     // Update handles typing or two-step scroll
     TextBox.prototype.update = function (input = null) {
         if (!this.visible) return;
+ 
+        // If the box is NOT on top, pause (unless parallel)
+        const hasFM = !!window.FocusManager;
+        const isTop = !hasFM || FocusManager.current() === this;
+        
+        // hide caret so background boxes don't blink
+        if (!isTop) this._setCaretVisible(false);
+        if (!isTop && !this.parallel) return;
  
         // speedHeld = A/B currently held down (caller decides detection)
         this._speedHeld = !!(input && input.speedHeld);
@@ -681,7 +711,7 @@
     };
  
     TextBox.prototype.advance = function () {
-        // Only allow A when page is idle and ready (no typing, no pauses)
+        // Only allow A/B when page is idle and ready (no typing, no pauses)
         if (!this.canAdvance()) return;
  
         // more pages? start two-step scroll
@@ -690,6 +720,12 @@
         } else {
             this.hide({ destroy: true });
         }
+    };
+ 
+    TextBox.prototype.advanceFromUser = function () {
+        if (!this.canAdvance()) return;
+        try { this._callSfx && this._callSfx("PRESSAB", { blocking: false }); } catch (_) {}
+        this.advance();
     };
  
     // ----- Typewriter internals -----
@@ -728,7 +764,7 @@
             framesUntilNextChar: 0  // Cadence counter
         };
     };
-
+ 
     TextBox.prototype._callSfx = function (id, opts) {
         // use instance hook otherwise fallback to global if it appears later
         const fn = this.onSfx || (window.AudioHooks && window.AudioHooks.onSfx) || null;
@@ -792,21 +828,21 @@
             } else if (ev.name === "SFX") {
                 // n === 1 → BLOCK, else non-blocking
                 const isBlock = (ev.n === 1);
-
+ 
                 if (!isBlock) {
                     this._callSfx(ev.arg, { blocking: false });
                     t.evIdx++;
                     return;
                 }
-
+ 
                 // Blocking SFX: event-driven resume with failsafe
                 const token = { aborted: false };
                 this._blockToken = token;
-
+ 
                 const clearFail = () => {
                     if (this._blockFailTimer != null) { clearTimeout(this._blockFailTimer); this._blockFailTimer = null; }
                 };
-
+ 
                 const resume = () => {
                     if (token.aborted) return;
                     clearFail();
@@ -814,20 +850,20 @@
                     t.evIdx++;                     // advance past SFX
                     t.framesUntilNextChar = 0;
                 };
-
+ 
                 // 5s failsafe: unblock even if audio never reports 'ended'
                 this._blockFailTimer = setTimeout(resume, 5000);
-
+ 
                 // Start SFX and let audio layer call resume() on 'ended'
                 this._callSfx(ev.arg, { blocking: true, resume, skippable: false });
-
+ 
                 // While blocked, yield until resume() runs. (No t.pause → AB can't skip.)
                 return;
             } else if (ev.name === "BGM") {
                 const id = ev.arg.id;
                 const flags = Array.isArray(ev.arg.flags) ? ev.arg.flags : [];
                 const have = (f) => flags.includes(f);
-
+ 
                 this._callBgm({
                     id,
                     fade: have("FADE"),
@@ -836,15 +872,13 @@
                     returnTo: (have("ONCE") && flags.length >= 2) ? flags[1] : null,
                     stop: false
                 });
-
+ 
                 t.evIdx++;
                 return;
             }
-
+ 
             else if (ev.name === "STOPBGM") {
-                if (this.onBgm) {
-                    this._callBgm({ id: null, fade: !!(ev.arg && ev.arg.fade), loop: false, once: false, returnTo: null, stop: true });
-                }
+                this._callBgm({ id: null, fade: !!(ev.arg && ev.arg.fade), loop: false, once: false, returnTo: null, stop: true });
                 t.evIdx++;
                 return;
             } else if (ev.name === "DOTS") {
@@ -995,6 +1029,11 @@
  
     TextBox.prototype._setCaretVisible = function (on) {
         if (!this.caretEl) return;
+ 
+        // only focused (top) textbox may show a caret...
+        let allowed = !!on;
+        if (window.FocusManager && FocusManager.current() !== this) allowed = false;
+ 
         this.caretEl.style.display = on ? "block" : "none";
         this._positionCaret();
     };

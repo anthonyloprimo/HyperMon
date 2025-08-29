@@ -4,8 +4,7 @@
 // BGM data is stored in res/bgm/*.mp3 or *.ogg
 (function (g) {
     "use strict";
-
-    // ---------- Config / Manifests ----------
+ 
     // Map your logical IDs to file paths. Keep IDs UPPERCASE to match parser.
     const SFX_MANIFEST = {
         PRESSAB:         "res/sfx/SFX_PRESS_AB.wav",
@@ -53,7 +52,7 @@
         SWAP:            "res/sfx/SFX_SWAP.wav",
         HEALINGMACHINE:  "res/sfx/SFX_HEALING_MACHINE.wav",
     };
-
+ 
     const BGM_MANIFEST = {
         OPENING:    "res/bgm/02. Opening Movie - Stereo (Red, Green & Blue Version).mp3",
         TITLE:      "res/bgm/03. Title Screen.mp3",
@@ -62,28 +61,30 @@
         HURRYALONG: "res/bgm/06. Hurry Along.mp3",
         OAKSLAB:    "res/bgm/07. Pokémon Lab.mp3"
     };
-
+ 
     // Defaults when flags are omitted by *BGM,ID:
     const DEFAULT_BGM_LOOP = true;
     const DEFAULT_BGM_FADE = false;
-
+ 
     // Fade timings (ms)
-    const FADE_OUT_MS = 300;
-    const FADE_IN_MS  = 300;
-
-    // ---------- Web Audio setup ----------
+    const FADE_OUT_MS = 500;
+    const FADE_IN_MS  = 500;
+ 
+    // Web Audio setup
     const AudioContextCtor = (window.AudioContext || window.webkitAudioContext);
     const ctx = new AudioContextCtor();
     let unlocked = false;
-
+ 
     function tryStartCurrentMedia() {
         if (currentBgm && currentBgm.media && currentBgm.media.paused) {
             currentBgm.media.play().catch(() => {});
             // ensure gain is up (in case we faded to 0)
-            try { fadeTo(currentBgm.gain, 1.0, FADE_IN_MS); } catch (e) {}
+            // try { fadeTo(currentBgm.gain, 1.0, FADE_IN_MS); } catch (e) {}
+            if (currentBgm.gain) fadeTo(currentBgm.gain, 1.0, FADE_IN_MS);
+            else fadeElementVolume(currentBgm.media, 1.0, FADE_IN_MS);
         }
     }
-
+ 
     function unlockAudio() {
         if (unlocked) return;
         // Resume context on first user gesture
@@ -98,10 +99,10 @@
         window.addEventListener("keydown", resume, { once: true });
     }
     unlockAudio();
-
-    // ---------- SFX: buffer cache ----------
+ 
+    // SFX: buffer cache
     const sfxCache = new Map(); // id -> AudioBuffer
-
+ 
     async function loadSfx(id) {
         if (sfxCache.has(id)) return sfxCache.get(id);
         const url = SFX_MANIFEST[id];
@@ -112,7 +113,7 @@
         sfxCache.set(id, buf);
         return buf;
     }
-
+ 
     function playSfxImmediate(id) {
         const buf = sfxCache.get(id);
         if (!buf) return null;
@@ -123,27 +124,44 @@
         src.start(0);
         return { src, gain };
     }
-
-    // ---------- BGM: media element + gain for fade ----------
+ 
+    const SFX_USE_ELEMENT = (location.protocol === "file:"); // force element for local files
+ 
+    function playSfxElement(id) {
+        const url = SFX_MANIFEST[id];
+        if (!url) return null;
+        const el = new Audio(url);
+        el.preload = "auto";
+        el.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
+        return el;
+    }
+ 
+    // BGM: media element + gain for fade
     let currentBgm = null; // { id, media, node, gain, loop, once, returnTo }
     const bgmStack = [];   // stack for ONCE/restore (depth 1–2 is plenty)
-
+ 
     function makeMedia(url, loop) {
         const el = new Audio();
         el.src = url;
         el.loop = !!loop;
         el.preload = "auto";
-        el.crossOrigin = "anonymous"; // safe if files are same-origin; harmless otherwise
+        // Commenting out crossOrigin for now as we want to make this work for local files at this time (double-click index.html)
+        // el.crossOrigin = "anonymous"; // safe if files are same-origin; harmless otherwise
         return el;
     }
-
+ 
     function connectMedia(el) {
-        const node = ctx.createMediaElementSource(el);
-        const gain = ctx.createGain();
-        node.connect(gain).connect(ctx.destination);
-        return { node, gain };
+        try {
+            const node = ctx.createMediaElementSource(el);
+            const gain = ctx.createGain();
+            node.connect(gain).connect(ctx.destination);
+            return { node, gain };
+        } catch (e) {
+            // Fallback to plain HTMLAudio
+            return { node: null, gain: null, ok: false };
+        }
     }
-
+ 
     function fadeTo(gainNode, target, ms) {
         const now = ctx.currentTime;
         const dur = Math.max(0.001, ms / 1000);
@@ -152,19 +170,35 @@
         gainNode.gain.setValueAtTime(start, now);
         gainNode.gain.linearRampToValueAtTime(target, now + dur);
     }
-
+ 
+        // fallback if local file only
+        function fadeElementVolume(media, target, ms) {
+            const start = media.volume;
+            const startTime = performance.now();
+            const dur = Math.max(1, ms|0);
+ 
+            function step(now) {
+                const t = Math.min(1, (now - startTime) / dur);
+                media.volume = start + (target - start) * t;
+                if (t < 1) requestAnimationFrame(step);
+            }
+            requestAnimationFrame(step);
+        }
+ 
     async function startBgm(opts) {
         const { id, fade = DEFAULT_BGM_FADE, loop = DEFAULT_BGM_LOOP, once = false, returnTo = null } = opts;
         if (!id) return;
-
         const url = BGM_MANIFEST[id];
         if (!url) return;
-
+ 
         // Prepare next media
         const media = makeMedia(url, !once && loop);
-        const { node, gain } = connectMedia(media);
-        gain.gain.value = 0.0;
-
+        // const { node, gain, ok } = connectMedia(media);
+        // gain.gain.value = 0.0;
+        const useGraph = location.protocol !== "file:";
+        const { node, gain, ok } = useGraph ? connectMedia(media) : { node: null, gain: null, ok: false };
+        if (ok) { gain.gain.value = 0.0; }
+ 
         // Handle ONCE: push current on stack
         if (once) {
             if (currentBgm && currentBgm.id) {
@@ -173,44 +207,54 @@
                 bgmStack.push(null);
             }
         }
-
+        
         // Swap: stop current
         await stopBgmInternal({ fade }); // fade-out old track
-
+ 
         // Become current
         currentBgm = { id, media, node, gain, loop: !once && loop, once, returnTo };
-
+ 
         // If once, restore behavior on ended
-        if (once) {
-            media.addEventListener("ended", () => {
-                restoreAfterOnce();
-            }, { once: true });
-        }
-
-        // Play
-        // (ensure context running)
+        if (once) { media.addEventListener("ended", () => { restoreAfterOnce(); }, { once: true }); }
+ 
+        // Play (ensure context running)
         if (ctx.state !== "running") { try { await ctx.resume(); } catch (e) {} }
         media.currentTime = 0;
-        media.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
-
+ 
+        // Set starting loudness for chosen path and then play...
+        if (ok) {
+            gain.gain.value = 1.0;
+            media.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
+            // fadeTo(gain, 1.0, FADE_IN_MS);  // No fade in for playing
+        } else {
+            media.volume = 1.0;
+            media.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
+            fadeElementVolume(media, 1.0, FADE_IN_MS);
+        }
+ 
         // Fade in
-        fadeTo(gain, 1.0, FADE_IN_MS);
+        // fadeTo(gain, 1.0, FADE_IN_MS);
+        media.volume = ok ? 1.0 : 1.0;
+        if (ok) fadeTo(gain, 1.0, FADE_IN_MS);
+        else fadeElementVolume(media, 1.0, FADE_IN_MS);
     }
-
+ 
     async function stopBgmInternal({ fade = DEFAULT_BGM_FADE } = {}) {
         if (!currentBgm) return;
         const { media, gain } = currentBgm;
         if (fade) {
-            fadeTo(gain, 0.0, FADE_OUT_MS);
+            if (gain) fadeTo(gain, 0.0, FADE_OUT_MS);
+            else fadeElementVolume(media, 0.0, FADE_OUT_MS);
             await new Promise(r => setTimeout(r, FADE_OUT_MS));
         }
         try { media.pause(); } catch (e) {}
+        try { media.volume = 0.0; } catch (e) {}
         try { media.src = ""; media.load?.(); } catch (e) {}
         // disconnect
         try { currentBgm.node.disconnect(); } catch (e) {}
         currentBgm = null;
     }
-
+ 
     async function restoreAfterOnce() {
         // If an explicit returnTo was set, prefer it
         if (currentBgm && currentBgm.returnTo) {
@@ -221,11 +265,11 @@
             bgmStack.length = 0;
             return;
         }
-
+ 
         // Otherwise pop prior
         const prior = bgmStack.pop ? bgmStack.pop() : null;
         currentBgm = null;
-
+ 
         if (prior && prior.id) {
             await startBgm({ id: prior.id, fade: true, loop: prior.loop, once: false });
         } else {
@@ -233,11 +277,23 @@
             // nothing to do
         }
     }
-
+ 
     // ---------- Public hooks for TextBox ----------
     g.AudioHooks = {
         // Non-blocking or blocking SFX (event-driven). Text engine passes resume() for blocking.
         onSfx: (id, { blocking, resume /*, skippable */ }) => {
+            if (SFX_USE_ELEMENT) { // fallback if local file only
+                const el = playSfxElement(id);
+                if (!el) { if (resume) resume(); return; }
+                if (blocking) {
+                    const done = () => { el.removeEventListener("ended", done); resume && resume(); };
+                    el.addEventListener("ended", done, {once: true});
+                    // 5 second failsafe
+                    setTimeout(() => { el.pause?.(); done(); }, 5000);
+                }
+                return;
+            }
+ 
             const ensure = sfxCache.has(id) ? Promise.resolve() : loadSfx(id);
             ensure.then(() => {
                 const h = playSfxImmediate(id);
@@ -249,7 +305,7 @@
                 if (resume) resume();
             });
         },
-
+ 
         // BGM control; never blocks the textbox
         onBgm: ({ id, fade, loop, once, returnTo, stop }) => {
             if (stop) {
@@ -262,7 +318,7 @@
             startBgm({ id, fade: wantFade, loop: wantLoop, once: !!once, returnTo: returnTo || null });
         }
     };
-
+ 
     // ---------- Optional: simple preload helpers you can call from boot ----------
     g.AudioPreload = {
         // Prime SFX by IDs (returns a Promise that resolves when all decoded)
@@ -288,10 +344,16 @@
             await Promise.all(tasks);
         }
     };
-
+ 
     // Expose simple getters if needed elsewhere
     g.AudioState = {
-        get currentBgmId() { return currentBgm?.id || null; }
+        get currentBgmId() { return currentBgm?.id || null; },
+        setBgmVolume(v) {
+            v = Math.max(0, Math.min(1, v));
+            if (!currentBgm) return;
+            if (currentBgm.gain) currentBgm.gain.gain.value = v;
+            else currentBgm.media.volume = v;
+        }
     };
-
+ 
 })(window);

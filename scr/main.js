@@ -4,18 +4,22 @@ const jp = new Joypad({ repeatDelayFrames: 12, repeatRateFrames: 3 });
 Renderer.init();
 const scenes = new SceneManager();
  
-const box = new TextBox();
-// Normal 'typing" test
-box.show("This is a TEST MESSAGE that will be displayed...\non the screen!  And here is even more text to ensure we spill onto another page with the caret rule applied.", {speed: "SLOW"})
+const box1 = new TextBox();
+const box2 = new TextBox({
+    top: 64
+});
+const box3 = new TextBox({
+    top: 48
+});
+const box4 = new TextBox({
+    top: 0
+});
  
-// command test (with *WAIT:, *WAIT,100:, and *AUTO:)
-// box.show(`VOLTORB used\nSCREECH!\nTARGET's*AUTO:\n DEFENSE*WAIT:*AUTO:\nharshly fell!\n*WAIT,100:That was a 100 frame wait!`);
+box1.show(`Now entering Pallet Town! *BGM,PALLET: Music should be playing now!\n*STOPBGM:*AUTO:`, {parallel: true});
+box2.show(`This is another textbox!`);
+box4.show(`This one is on top of the other two and runs in parallel! How cool!`);
+box3.show(`This one is on top of the other three!`, {speed: "MED"});
  
-// auto scroll test
-// box.show(`First line.\n*AUTO:Second line.\nThird line!`,{speed:"MED"})
-
-// music test
-box.show(`Now entering Pallet Town! *BGM,PALLET: Music should be playing now!`,{speed:"SLOW"})
  
 // box.show(`This is a test*DOTS,3:\n ...To see if the DOTS function works!`, {speed: "MED"});
 // Demo scenes you can delete later
@@ -66,13 +70,8 @@ const MAX_FRAME = 250;
 const MAX_STEPS = 5;
  
 function update(dt){
-    // consider A or B held if either is pressed/repeating this frame...
-    const speedHeld = (jp.pressed('a') || jp.held('a') || jp.pressed('b') || jp.held('b'));
-    box.update( {speedHeld} );
- 
-    if ((jp.pressed('a') || jp.pressed('b') || jp.pressed('start')) && box.canAdvance()) {
-        box.advance();
-    }
+    FocusManager.update({ jp, dt});
+    FocusManager.handleInput({ jp, dt});
  
     scenes.update(dt);
 }
