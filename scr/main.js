@@ -4,21 +4,9 @@ const jp = new Joypad({ repeatDelayFrames: 12, repeatRateFrames: 3 });
 Renderer.init();
 const scenes = new SceneManager();
  
-const box1 = new TextBox();
-const box2 = new TextBox({
-    top: 64
-});
-const box3 = new TextBox({
-    top: 48
-});
-const box4 = new TextBox({
-    top: 0
-});
+const box = new TextBox();
  
-box1.show(`Now entering Pallet Town! *BGM,PALLET: Music should be playing now!\n*STOPBGM:*AUTO:`, {parallel: true});
-box2.show(`This is another textbox!`);
-box4.show(`This one is on top of the other two and runs in parallel! How cool!`);
-box3.show(`This one is on top of the other three!`, {speed: "MED"});
+box.show(`This is magic!*PAUSE,TEST:\n *DOTS,3:Press A to continue.`);
  
  
 // box.show(`This is a test*DOTS,3:\n ...To see if the DOTS function works!`, {speed: "MED"});

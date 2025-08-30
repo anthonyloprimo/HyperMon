@@ -145,8 +145,13 @@
  
     // *STOPBGM:      - immediately stop the currently playing background music
     // *STOPBGM,FADE; - immediately fades out and stips the currently playing background music
- 
+    
+    // *PAUSE,ID:     - execute a script ID (javascript function) at the point it's called while parsing the string for a textbox
+    //      ARG1      - one or more arguments can be added, comma-separated, following the ID.
+
     // Must be UPPERCASE and end with ':' immediately, otherwise it's treated as text!
+
+
     function tryParseCommand(s, startIdx) {  // s = string, startIdx = 
         // starts with '*'
         let i = startIdx + 1;
@@ -198,11 +203,11 @@
             return {name: "SFX", arg: id, n: isBlock ? 1 : 0, nextIndex: colon + 1};
         }
  
-        // *BGM,...: - play or change currently playing BGM, requires arguments listed below...
-            // ID          - track name (i.e. PALLET, ROUTE1, VIRIDIAN, etc...)
-            // LOOP        - play and loop endlessly
-            // FADE        - fades out the current track instead of suddenly stopping it.
-            // ONCE        - play once (can specify a track name in the immediately following parameter, ideally set these last).
+        // *BGM,...:  - play or change currently playing BGM, requires arguments listed below...
+            // ID     - track name (i.e. PALLET, ROUTE1, VIRIDIAN, etc...)
+            // LOOP   - play and loop endlessly
+            // FADE   - fades out the current track instead of suddenly stopping it.
+            // ONCE   - play once (can specify a track name in the immediately following parameter, ideally set these last).
                 // If LOOP and ONCE are both in this command, ONCE takes priority, music will NOT loop!
         if (body.startsWith("BGM,")) {
             const parts = body.split(",");
@@ -217,6 +222,15 @@
         // *STOPBGM,FADE: - fades BGM and then stops the music
         if (body === "STOPBGM") return {name: "STOPBGM", arg: { fade: false }, nextIndex: colon + 1};
         if (body === "STOPBGM,FADE") return {name: "STOPBGM", arg: { fade: true }, nextIndex: colon + 1};
+
+        // *PAUSE,ID:    - execute a script (function) inline.
+            // ARG1,etc  - any relevant parameters are added, commar-separated (i.e. *PAUSE,ID,ARG1,ARG2:).
+        if (body.startsWith("PAUSE,")) {
+            const parts = body.split(",");
+            parts.shift(); // remove "PAUSE"
+            if (parts.length < 1) return null; // ID needed otherwise not valid command
+            return { name: "PAUSE", arg: parts, nextIndex: colon + 1 }; // arg = [ID, ARG1, ARG2, ...]
+        }
  
         return null;
     }
@@ -875,9 +889,7 @@
  
                 t.evIdx++;
                 return;
-            }
- 
-            else if (ev.name === "STOPBGM") {
+            } else if (ev.name === "STOPBGM") {
                 this._callBgm({ id: null, fade: !!(ev.arg && ev.arg.fade), loop: false, once: false, returnTo: null, stop: true });
                 t.evIdx++;
                 return;
@@ -911,6 +923,48 @@
                 t._dotWaiting = false;
                 t.evIdx++;
                 t.framesUntilNextChar = 0;
+                return;
+            } else if (ev.name === "PAUSE") {
+                // ev.arg is an array
+                const parts = Array.isArray(ev.arg) ? ev.arg : [];
+                const id = parts[0];
+                const args = parts.slice(1);
+
+                // if no id, skip
+                if (!id) { t.evIdx++; return; }
+
+                // block until script calls resume or resolves promise
+                const token = {aborted: false};
+                this._blockToken = token;
+
+                // failsafe
+                const clearFail = () => {
+                    if (this._blockFailTimer != null) { clearTimeout(this._blockFailTimer); this._blockFailTimer = null; }
+                };
+                const resume = () => {
+                    if (token.aborted) return;
+                    clearFail();
+                    this._blockToken = null;
+                    t.evIdx++;                     // advance past PAUSE
+                    t.framesUntilNextChar = 0;
+                };
+                this._blockFailTimer = setTimeout(resume, 10000); // 10s failsafe
+
+                // hide caret while paused
+                this._setCaretVisible(false);
+
+                // build context
+                const ctx = {box: this, FocusManager: window.FocusManager};
+
+                // run script via liason in scripts.global.js
+                try {
+                    const run = window.Script && window.Script.run;
+                    if (run) run(id, args, ctx, resume);
+                    else resume();
+                } catch(e) {
+                    console.error(e);
+                    resume();
+                }
                 return;
             }
             t.evIdx++;
