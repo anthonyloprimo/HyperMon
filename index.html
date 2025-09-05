@@ -60,6 +60,22 @@ html, body {
         }
         .ui-caret{ position:absolute; right:6px; bottom:4px; animation: blink 600ms steps(1) infinite; }
         @keyframes blink{ 50%{ opacity:0; } }
+
+        #layer-bg, #layer-sprites {
+            transform: translate3d(var(--camX, 0px), var(--camY, 0px), 0);
+            will-change: transform;
+        }
+        #layer-bg {
+            contain: paint;
+        }
+        .tile {
+            background-image: var(--tileset-url, none);
+            background-repeat: no-repeat;
+        }
+
+        .tile.anim-ocean  { background-image: var(--ocean-url,  var(--tileset-url)); background-position: 0 var(--ocean-y, 0px)}
+        .tile.anim-water  { background-image: var(--water-url,  var(--tileset-url)); background-position: 0 var(--water-y, 0px)}
+        .tile.anim-flower { background-image: var(--flower-url, var(--tileset-url)); background-position: 0 var(--flower-y, 0px)}
  
     #gameContainer .text {
         margin: 0;
@@ -123,6 +139,8 @@ html, body {
 <!-- order matters: load the class, then your code -->
 <script src="scr/scripts.global.js"></script>
 <script src="scr/joypad.global.js"></script>
+<script src="scr/mapLoader.global.js"></script>
+<script src="res/bg/maps/mapTemplate.js"></script>
 <script src="scr/sceneManager.global.js"></script>
 <script src="scr/renderer.global.js"></script>
 <script src="scr/textbox.global.js"></script>

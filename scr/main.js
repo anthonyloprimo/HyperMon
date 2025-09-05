@@ -1,5 +1,11 @@
 const jp = new Joypad({ repeatDelayFrames: 12, repeatRateFrames: 3 });
- 
+
+MapLoader.loadMap("res/bg/maps/", "mapTemplate").then(({ map, diagnostics }) => {
+    window.__map = map;
+    if (!map) return;
+    console.debug("Map ready (normalized)", map);
+});
+
 // Initialize renderer & scene system
 Renderer.init();
 const scenes = new SceneManager();
