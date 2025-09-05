@@ -154,6 +154,14 @@
             columns: clampInt(raw.columns || 16, 1, 1024),
             animations: new Map()
         };
+        // Optional author override; if not present we assume padded = tile size
+        const gapX = Number.isFinite(raw.gapX) ? Math.max(0, raw.gapX|0) : tileset.tileWidth;
+        const gapY = Number.isFinite(raw.gapY) ? Math.max(0, raw.gapY|0) : tileset.tileHeight;
+
+        tileset.gapX   = gapX;
+        tileset.gapY   = gapY;
+        tileset.pitchX = tileset.tileWidth  + gapX;   // 8 + 8 = 16 in your default
+        tileset.pitchY = tileset.tileHeight + gapY;
 
         const anims = raw.animations || {};
         for (const key in anims) {
