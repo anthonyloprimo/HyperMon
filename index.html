@@ -4,9 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>HyperMon v0.0.1</title>
- 
+
 <script src="scr/jquery-3.4.1.min.js"></script>
- 
+
 <style>
 @font-face {
     font-family: 'pkmnFont';
@@ -15,7 +15,7 @@
     font-style: normal;
     font-display: swap;
 }
- 
+
 html, body {
     height: 100%;
     width: 100%;
@@ -28,7 +28,7 @@ html, body {
         margin: 0; padding: 0; overflow: hidden;
         display: flex; align-items: center; justify-content: center;
     }
- 
+
 #gameContainer {
     width: 160px; height: 144px; aspect-ratio: 160/144; overflow: hidden;
     margin: 0; padding: 0;
@@ -71,12 +71,13 @@ html, body {
         .tile {
             background-image: var(--tileset-url, none);
             background-repeat: no-repeat;
+            overflow: hidden;
         }
 
         .tile.anim-ocean  { background-image: var(--ocean-url,  var(--tileset-url)); background-position: 0 var(--ocean-y, 0px)}
         .tile.anim-water  { background-image: var(--water-url,  var(--tileset-url)); background-position: 0 var(--water-y, 0px)}
         .tile.anim-flower { background-image: var(--flower-url, var(--tileset-url)); background-position: 0 var(--flower-y, 0px)}
- 
+
     #gameContainer .text {
         margin: 0;
         transform: translate(0, -1px);
@@ -85,7 +86,7 @@ html, body {
         .pt {
             padding-top: 8px;
         }
- 
+
     .msgBox {
         background-color: #FFFFFF;
         display: inline-block;
@@ -94,7 +95,7 @@ html, body {
         position: absolute;
     }
         .msgBox p { margin: 0; white-space: pre-wrap; }
- 
+
 </style>
 </head>
 <body>
@@ -106,19 +107,19 @@ html, body {
         </div>
     </div>
 </div>
- 
+
 <script>
     let SCALE = 1; // global scale value;
- 
+
     // Integer scaling for a 160x144 logical surface
     function fitGameToWindow() {
         const baseW = 160, baseH = 144;
         const w = window.innerWidth, h = window.innerHeight;
- 
+
         // Max integer scale that fits
         SCALE = Math.max(1, Math.floor(Math.min(w / baseW, h / baseH)));
         if (SCALE < 1) SCALE = 1; // never downscale below 1x (matches your requirement)
- 
+
         $('#gameContainer').css({
             width: `${baseW}px`,
             height: `${baseH}px`,
@@ -126,7 +127,7 @@ html, body {
             transformOrigin: `center center`
         });
     }
- 
+
     // Run once and on resize (with a tiny debounce)
     let _resizeTimer = null;
     $(window).on('resize', function () {
@@ -135,7 +136,7 @@ html, body {
     });
     $(fitGameToWindow);
 </script>
- 
+
 <!-- order matters: load the class, then your code -->
 <script src="scr/scripts.global.js"></script>
 <script src="scr/joypad.global.js"></script>
