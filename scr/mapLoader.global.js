@@ -134,9 +134,9 @@
                         (highest === "good") ? mergeTables(oldT, goodT) :
                         (highest === "super")? mergeTables(oldT, goodT) : compileEncounterTable([]);
         const effSuper = (highest === "old")  ? oldT  :
-                         (highest === "good") ? mergeTables(oldT, goodT) :
-                         (highest === "super")? mergeTables(mergeTables(oldT, goodT), superT) :
-                         compileEncounterTable([]);
+                        (highest === "good") ? mergeTables(oldT, goodT) :
+                        (highest === "super")? mergeTables(mergeTables(oldT, goodT), superT) :
+                        compileEncounterTable([]);
 
         return { old: effOld, good: effGood, super: effSuper };
     }
@@ -567,7 +567,7 @@
                 return MapLoader.parse(raw);
             }
             const hint = "Map JS must either call MapLoader.register('" + baseName + "', {...}) "
-                       + "or assign a global var: var " + baseName + " = {...};";
+                    + "or assign a global var: var " + baseName + " = {...};";
             dend();
             return { map: null, diagnostics: [{ level: "error", code: "MAP_JS_NOT_FOUND", message: hint }] };
         } catch (e) {

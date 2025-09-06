@@ -1,19 +1,19 @@
 const jp = new Joypad({ repeatDelayFrames: 12, repeatRateFrames: 3 });
 
-MapLoader.loadMap("res/bg/maps/", "mapTemplate").then(({ map, diagnostics }) => {
-    window.__map = map;
+// Testing map loading system
+MapLoader.loadMap("res/bg/maps/", "mapTemplate").then(({ map }) => {
     if (!map) return;
-    console.debug("Map ready (normalized)", map);
+    Renderer.init();
+    Renderer.attachMap(map);
+    Renderer.drawView(0, 0);
 });
 
 // Initialize renderer & scene system
-Renderer.init();
+// Renderer.init();
 const scenes = new SceneManager();
- 
+
 const box = new TextBox();
- 
 box.show(`This is magic!*PAUSE,TEST:\n *DOTS,3:Press A to continue.`);
- 
  
 // box.show(`This is a test*DOTS,3:\n ...To see if the DOTS function works!`, {speed: "MED"});
 // Demo scenes you can delete later
@@ -56,42 +56,42 @@ box.show(`This is magic!*PAUSE,TEST:\n *DOTS,3:Press A to continue.`);
 // }
 //
 // scenes.replace(new TitleScene());
- 
+
 // simple fixed-step loop without modules
 let acc = 0, last = performance.now();
 const STEP = 1000/60;
 const MAX_FRAME = 250;
 const MAX_STEPS = 5;
- 
+
 function update(dt){
     FocusManager.update({ jp, dt});
     FocusManager.handleInput({ jp, dt});
- 
+
     scenes.update(dt);
 }
- 
+
 function draw() {
     // dom updates if separate renderer
     scenes.draw();
 }
- 
+
 function frame(now){
     let delta = now - last; last = now;
- 
+
     // clamp huge pauses to keep loop stable
     if (delta > MAX_FRAME) delta = MAX_FRAME;
- 
+
     acc += delta;
- 
+
     // catch up
     let steps = 0;
     while (acc >= STEP && steps < MAX_STEPS) { jp.poll(); update(STEP/1000); acc -= STEP; steps++; }
- 
+
     draw();
     requestAnimationFrame(frame);
 }
- 
+
 // safety: clear input when window loses focus so keys don't get “stuck”
 addEventListener('blur', () => { acc = 0; last = performance.now(); });
- 
+
 requestAnimationFrame(frame);
