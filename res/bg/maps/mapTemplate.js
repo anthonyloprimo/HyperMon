@@ -5,7 +5,7 @@ var mapTemplate = {
     "bgm": "res/bgm/04 Pallet Town.mp3",
 
     "tileset": {
-        "image": "res/bg/tilesTest.png",
+        "image": "res/bg/tilesOutdoorA.png",
         "tileWidth": 8,
         "tileHeight": 8,
         "columns": 16,
@@ -22,7 +22,7 @@ var mapTemplate = {
 
     "squares": [
         {
-            "tiles": ["0x00", "0x00", "0x00", "0x00"],
+            "tiles": ["0x2C", "0x2C", "0x2C", "0x2C"],
             "collision": {
                 "solid": false,
                 "ledge": null,
@@ -34,31 +34,67 @@ var mapTemplate = {
             }
         },
         {
-            "tiles": ["0x11", "0x12", "0x13", "0x14"],
+            "tiles": ["0x40", "0x41", "0x50", "0x51"],
             "collision": {
                 "solid": true,
+                "ledge": null,
+                "surface": "wall",
+                "talkOver": false
+            },
+            "attributes": {
+                "tags": ["tree"]
+            }
+        },
+        {
+            "tiles": ["0x2A", "0x2B", "0x3A", "0x3B"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "wall",
+                "talkOver": false
+            },
+            "attributes": {
+                "tags": ["bollard"]
+            }
+        },
+        {
+            "tiles": ["0x39", "0x39", "0x39", "0x39"],
+            "collision": {
+                "solid": false,
                 "ledge": null,
                 "surface": "normal",
                 "talkOver": false
             },
             "attributes": {
-                "tags": ["wall"]
+                "tags": ["shortGrassA"]
             }
         },
         {
-            "tiles": ["0x4B", "0x4C", "0x4D", "0x4E"],
+            "tiles": ["0x00", "0x00", "0x39", "0x00"],
             "collision": {
                 "solid": false,
                 "ledge": null,
-                "surface": "water",
+                "surface": "normal",
                 "talkOver": false
             },
             "attributes": {
-                "tags": ["water"]
+                "tags": ["shortGrassB"]
             }
         },
         {
-            "tiles": ["0x28", "0x29", "0x38", "0x39"],
+            "tiles": ["0x00", "0x00", "0x00", "0x00"],
+            "collision": {
+                "solid": false,
+                "ledge": null,
+                "surface": "normal",
+                "talkOver": false
+            },
+            "attributes": {
+                "tags": ["noGrass"]
+            }
+        },
+        {
+            "tiles": ["0x05", "0x06", "0x15", "0x16"],
             "collision": {
                 "solid": false,
                 "ledge": null,
@@ -66,22 +102,166 @@ var mapTemplate = {
                 "talkOver": true
             },
             "attributes": {
-                "tags": ["counterFront"]
+                "tags": ["roofLeftA"]
+            }
+        },
+        {
+            "tiles": ["0x25", "0x26", "0x5C", "0x17"],
+            "collision": {
+                "solid": false,
+                "ledge": null,
+                "surface": "normal",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["roofLeftB"]
+            }
+        },
+        {
+            "tiles": ["0x07", "0x07", "0x17", "0x17"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "solid",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["roofTop"]
+            }
+        },
+        {
+            "tiles": ["0x08", "0x09", "0x18", "0x19"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "solid",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["roofRightA"]
+            }
+        },
+        {
+            "tiles": ["0x28", "0x29", "0x17", "0x5D"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "solid",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["roofRightB"]
+            }
+        },
+        {
+            "tiles": ["0x0A", "0x22", "0x17", "0x17"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "solid",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["houseTopA"]
+            }
+        },
+        {
+            "tiles": ["0x0A", "0x0A", "0x17", "0x17"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "solid",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["houseTopB"]
+            }
+        },
+        {
+            "tiles": ["0x0F", "0x22", "0x4E", "0x1A"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "solid",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["houseBottomLeft"]
+            }
+        },
+        {
+            "tiles": ["0x0B", "0x0C", "0x1B", "0x1C"],
+            "collision": {
+                "solid": false,
+                "ledge": null,
+                "surface": "door",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["houseBottomDoor"]
+            }
+        },
+        {
+            "tiles": ["0x0A", "0x0A", "0x1A", "0x1A"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "solid",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["houseBottomWindow"]
+            }
+        },
+        {
+            "tiles": ["0x22", "0x1F", "0x1A", "0x4F"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "solid",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["houseBottomRight"]
+            }
+        },
+        {
+            "tiles": ["0x46", "0x47", "0x56", "0x57"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "sign",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["signPostA"]
             }
         }
     ],
 
     "map": {
-        "width": 10,
-        "height": 6,
+        "width": 20,
+        "height": 18,
 
         "ids": [
-            0, 2, 2, 0, 0, 0, 0, 2, 2, 0,
-            1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-            0, 2, 2, 0, 0, 0, 0, 2, 2, 0,
-            0, 0, 0, 0, 3, 3, 0, 0, 0, 0,
-            0, 2, 2, 0, 0, 0, 0, 2, 2, 0,
-            0, 0, 0, 0, 1, 1, 0, 0, 0, 0
+            0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0,
+            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2,
+            2, 0, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 0, 2,
+            2, 0, 5, 4, 6, 8, 8, 9, 5, 4, 5, 4, 6, 8, 8, 9, 5, 4, 0, 2,
+            2, 0, 3, 3, 7,11,12,10, 4, 5, 3, 3, 7,11,12,10, 4, 5, 0, 2,
+            2, 0, 3,17,13,14,15,16, 5, 4, 3,17,13,14,15,16, 5, 4, 0, 2,
+            2, 0, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 0, 2,
+            2, 0, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 0, 2,
+            2, 0, 4, 5, 3, 3, 3, 3, 4, 5, 1, 1, 1, 1, 1, 1, 4, 5, 0, 2,
+            2, 0, 5, 4, 1, 1, 1, 1, 5, 4, 1, 1, 1, 1, 1, 1, 5, 4, 0, 2,
+            2, 0, 4, 5, 0, 0, 0, 0, 4, 5, 1, 1, 1, 1, 1, 1, 4, 5, 0, 2,
+            2, 0, 5, 4, 0, 0, 0, 0, 5, 4, 1, 1, 1, 1, 1, 1, 5, 4, 0, 2,
+            2, 0, 4, 5, 4, 5, 4, 5, 4, 5, 3, 3, 3, 3, 3, 3, 3, 3, 0, 2,
+            2, 0, 5, 4, 5, 4, 5, 4, 5, 4, 1, 1, 1, 1, 1, 1, 3, 3, 0, 2,
+            2, 0, 0, 0, 1, 1, 1, 1, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 0, 2,
+            2, 0, 0, 0, 1, 1, 1, 1, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 0, 2,
+            2, 0, 0, 0, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 2,
+            2, 2, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2
         ],
 
         "voidSquare": 0,

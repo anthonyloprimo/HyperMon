@@ -31,6 +31,8 @@ I'm not insane.  *You're* insane.
 - Added mapLoader.global.js for loading and parsing maps.
 - Modified tilesets to account for fitting multiple backgrounds in a single div
 - Added map rendering system
+- Testing proper map display with a real tileset
+- Added animated tile support
 
 ### v0.0.5
 - Text system refined and behaves more or less like it does in Generation I.
