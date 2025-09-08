@@ -68,6 +68,7 @@ function update(dt){
     FocusManager.handleInput({ jp, dt});
 
     scenes.update(dt);
+    Renderer.animate();
 }
 
 function draw() {

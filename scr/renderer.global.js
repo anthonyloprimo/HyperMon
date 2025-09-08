@@ -28,6 +28,11 @@
         _tileEls: [],
         _spriteMap: new Map(),
  
+        // animations
+        _animDefs: new Map(),
+        _squareBgImg: [],
+        _animTick: 0,
+
         // Map & precomputed square backgrounds
         _map: null,
         _squareBgPos: []  // index - "x y, x y, x y, x y"
@@ -80,25 +85,54 @@
         return [baseX, baseY];
     }
  
-    // precompute "x y, x y, x y, x y" bg positions for each square id
+    // precompute "x y, x y, x y, x y" bg positions for each square id from background-image and background-position
     function _precomputeSquareBgPos(map){
-        R._squareBgPos = new Array(map.squares.length);
-        for (let i = 0; i < map.squares.length; i++){
-            const sq = map.squares[i];
+        const squares = map.squares;
+        R._squareBgPos = new Array(squares.length);
+        R._squareBgImg = new Array(squares.length);
+
+        const T = R.tileW;
+
+        function posStatic(bx, by, dx, dy){
+            return `${(bx + dx)}px ${(by + dy)}px`;
+        }
+        function posAnim(key, dx, dy){
+            // frames move horizontally; dx adds quadrant shift; var provides frame offset (negative)
+            return `calc(var(--a-${key}-x) + ${dx}px) ${dy}px`;
+        }
+
+        for (let i = 0; i < squares.length; i++){
+            const sq = squares[i];
             const [tl, tr, bl, br] = sq.tiles;
- 
+
+            // per-layer source image (tileset by default)
+            const src = [R.tilesetImage, R.tilesetImage, R.tilesetImage, R.tilesetImage];
+
+            // base XY from static tileset (only used for static corners)
             const [bx0, by0] = _basePosForTileIndex(tl);
             const [bx1, by1] = _basePosForTileIndex(tr);
             const [bx2, by2] = _basePosForTileIndex(bl);
             const [bx3, by3] = _basePosForTileIndex(br);
- 
-            // quadrant shifts
-            const T = R.tileW;
-            const p0 = `${bx0}px ${by0}px`;          // TL
-            const p1 = `${bx1 + T}px ${by1}px`;      // TR
-            const p2 = `${bx2}px ${by2 + T}px`;      // BL
-            const p3 = `${bx3 + T}px ${by3 + T}px`;  // BR
- 
+
+            // decide per-layer if animated
+            const a0 = R._animDefs.get(tl);
+            const a1 = R._animDefs.get(tr);
+            const a2 = R._animDefs.get(bl);
+            const a3 = R._animDefs.get(br);
+
+            // swap image sources for animated layers
+            if (a0) src[0] = a0.image;
+            if (a1) src[1] = a1.image;
+            if (a2) src[2] = a2.image;
+            if (a3) src[3] = a3.image;
+
+            // build per-layer positions
+            const p0 = a0 ? posAnim(a0.key, 0,   0  ) : posStatic(bx0, by0, 0,   0  );   // TL
+            const p1 = a1 ? posAnim(a1.key, T,   0  ) : posStatic(bx1, by1, T,   0  );   // TR (+T x)
+            const p2 = a2 ? posAnim(a2.key, 0,   T  ) : posStatic(bx2, by2, 0,   T  );   // BL (+T y)
+            const p3 = a3 ? posAnim(a3.key, T,   T  ) : posStatic(bx3, by3, T,   T  );   // BR (+T x,y)
+
+            R._squareBgImg[i] = `url(${src[0]}), url(${src[1]}), url(${src[2]}), url(${src[3]})`;
             R._squareBgPos[i] = `${p0}, ${p1}, ${p2}, ${p3}`;
         }
     }
@@ -121,6 +155,23 @@
         for (let i = 0; i < R._tileEls.length; i++){
             const d = R._tileEls[i];
             d.style.backgroundImage = `url(${R.tilesetImage}), url(${R.tilesetImage}), url(${R.tilesetImage}), url(${R.tilesetImage})`;
+        }
+
+        R._animDefs.clear();
+        if (ts.animations && typeof ts.animations.forEach === 'function') {
+            ts.animations.forEach((def, tiNum) => {
+                const key = tiNum.toString(16).toUpperCase();
+                const total = def.totalFrames || 1;
+                // default framrate of animations
+                const period = def.periodFrames || 20;
+                const frameW = def.frameWidth || R.tileW;
+                const strideX = frameW + R.gapX;
+                R._animDefs.set(tiNum, {
+                    key, image: def.image, total, period, strideX
+                });
+                // use one variable for each animated tile id
+                R.bg.style.setProperty(`--a-${key}-x`, `0px`);
+            })
         }
  
         // precompute per-square bg position
@@ -164,10 +215,22 @@
                 // avoid redundant style writes...
                 if (el.dataset.sq != sqIndex) {
                     el.dataset.sq = sqIndex;
+                    el.style.backgroundImage = R._squareBgImg[sqIndex];
                     el.style.backgroundPosition = R._squareBgPos[sqIndex];
                 }
             }
         }
+    }
+
+    // animations
+    function animate() {
+        if (!R._animDefs || R._animDefs.size === 0) return;
+        R._animTick++;
+        R._animDefs.forEach(def => {
+            const frame = Math.floor(R._animTick / def.period) % def.total;
+            const x = -(frame * def.strideX);
+            R.bg.style.setProperty(`--a-${def.key}-x`, `${x}px`);
+        });
     }
  
     // Sprites
@@ -219,6 +282,7 @@
         addSprite: addSprite,
         updateSprite: updateSprite,
         removeSprite: removeSprite,
-        ensureTextBox: ensureTextBox
+        ensureTextBox: ensureTextBox,
+        animate: animate
     };
 })(window);
