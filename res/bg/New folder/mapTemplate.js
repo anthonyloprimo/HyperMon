@@ -11,7 +11,7 @@ var mapTemplate = {
         "columns": 16,
 
         "animations": {
-            "0x14": {
+            "0x03": {
                 "image": "res/bg/animWater.png",
                 "totalFrames": 8,
                 "frameWidth": 8,
@@ -99,7 +99,7 @@ var mapTemplate = {
                 "solid": false,
                 "ledge": null,
                 "surface": "normal",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["roofLeftA"]
@@ -111,7 +111,7 @@ var mapTemplate = {
                 "solid": false,
                 "ledge": null,
                 "surface": "normal",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["roofLeftB"]
@@ -123,7 +123,7 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "solid",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["roofTop"]
@@ -135,7 +135,7 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "solid",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["roofRightA"]
@@ -147,7 +147,7 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "solid",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["roofRightB"]
@@ -159,7 +159,7 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "solid",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["houseTopA"]
@@ -171,7 +171,7 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "solid",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["houseTopB"]
@@ -183,7 +183,7 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "solid",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["houseBottomLeft"]
@@ -195,7 +195,7 @@ var mapTemplate = {
                 "solid": false,
                 "ledge": null,
                 "surface": "door",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["houseBottomDoor"]
@@ -207,7 +207,7 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "solid",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["houseBottomWindow"]
@@ -219,7 +219,7 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "solid",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["houseBottomRight"]
@@ -231,94 +231,10 @@ var mapTemplate = {
                 "solid": true,
                 "ledge": null,
                 "surface": "sign",
-                "talkOver": false
+                "talkOver": true
             },
             "attributes": {
                 "tags": ["signPostA"]
-            }
-        },
-        {
-            "tiles": ["0x0E", "0x0E", "0x55", "0x55"],
-            "collision": {
-                "solid": true,
-                "ledge": null,
-                "surface": "wall",
-                "talkOver": false
-            },
-            "attributes": {
-                "tags": ["fence"]
-            }
-        },
-        {
-            "tiles": ["0x33", "0x33", "0x32", "0x14"],
-            "collision": {
-                "solid": true,
-                "ledge": null,
-                "surface": "water",
-                "talkOver": false
-            },
-            "attributes": {
-                "tags": ["coastNorthEast"]
-            }
-        },
-        {
-            "tiles": ["0x33", "0x33", "0x14", "0x14"],
-            "collision": {
-                "solid": true,
-                "ledge": null,
-                "surface": "water",
-                "talkOver": false
-            },
-            "attributes": {
-                "tags": ["coastNorth"]
-            }
-        },
-        {
-            "tiles": ["0x33", "0x33", "0x14", "0x54"],
-            "collision": {
-                "solid": true,
-                "ledge": null,
-                "surface": "water",
-                "talkOver": false
-            },
-            "attributes": {
-                "tags": ["coastNorthWest"]
-            }
-        },
-        {
-            "tiles": ["0x32", "0x14", "0x32", "0x14"],
-            "collision": {
-                "solid": true,
-                "ledge": null,
-                "surface": "water",
-                "talkOver": false
-            },
-            "attributes": {
-                "tags": ["coastEast"]
-            }
-        },
-        {
-            "tiles": ["0x14", "0x54", "0x14", "0x54"],
-            "collision": {
-                "solid": true,
-                "ledge": null,
-                "surface": "water",
-                "talkOver": false
-            },
-            "attributes": {
-                "tags": ["coastWest"]
-            }
-        },
-        {
-            "tiles": ["0x14", "0x14", "0x14", "0x14"],
-            "collision": {
-                "solid": true,
-                "ledge": null,
-                "surface": "water",
-                "talkOver": false
-            },
-            "attributes": {
-                "tags": ["water"]
             }
         }
     ],
@@ -329,19 +245,19 @@ var mapTemplate = {
 
         "ids": [
             0, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0, 0, 2, 0, 0, 0, 0, 0, 2, 0,
-            2,18,18, 2, 2, 2, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2,
-            2,19,20,21, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 0, 2,
-            2,22,24,23, 6, 8, 8, 9, 5, 4, 5, 4, 6, 8, 8, 9, 5, 4, 0, 2,
+            2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 0, 0, 2, 2, 2, 2, 2, 2, 2, 2,
+            2, 0, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 0, 2,
+            2, 0, 5, 4, 6, 8, 8, 9, 5, 4, 5, 4, 6, 8, 8, 9, 5, 4, 0, 2,
             2, 0, 3, 3, 7,11,12,10, 4, 5, 3, 3, 7,11,12,10, 4, 5, 0, 2,
             2, 0, 3,17,13,14,15,16, 5, 4, 3,17,13,14,15,16, 5, 4, 0, 2,
             2, 0, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 0, 2,
             2, 0, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 5, 4, 0, 2,
             2, 0, 4, 5, 3, 3, 3, 3, 4, 5, 1, 1, 1, 1, 1, 1, 4, 5, 0, 2,
-            2, 0, 5, 4,18,18,18,17, 5, 4, 1, 1, 1, 1, 1, 1, 5, 4, 0, 2,
+            2, 0, 5, 4, 1, 1, 1, 1, 5, 4, 1, 1, 1, 1, 1, 1, 5, 4, 0, 2,
             2, 0, 4, 5, 0, 0, 0, 0, 4, 5, 1, 1, 1, 1, 1, 1, 4, 5, 0, 2,
             2, 0, 5, 4, 0, 0, 0, 0, 5, 4, 1, 1, 1, 1, 1, 1, 5, 4, 0, 2,
             2, 0, 4, 5, 4, 5, 4, 5, 4, 5, 3, 3, 3, 3, 3, 3, 3, 3, 0, 2,
-            2, 0, 5, 4, 5, 4, 5, 4, 5, 4,18,18,18,17,18,18, 3, 3, 0, 2,
+            2, 0, 5, 4, 5, 4, 5, 4, 5, 4, 1, 1, 1, 1, 1, 1, 3, 3, 0, 2,
             2, 0, 0, 0, 1, 1, 1, 1, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 0, 2,
             2, 0, 0, 0, 1, 1, 1, 1, 3, 3, 0, 0, 0, 0, 0, 0, 3, 3, 0, 2,
             2, 0, 0, 0, 1, 1, 1, 1, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 2,

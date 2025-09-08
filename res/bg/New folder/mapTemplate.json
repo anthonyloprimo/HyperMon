@@ -1,0 +1,157 @@
+{
+    "mapName": "ExampleMap",
+    "schema": 1,
+
+    "bgm": "res/bgm/04 Pallet Town.mp3",
+
+    "tileset": {
+        "image": "res/bg/tilesTest.png",
+        "tileWidth": 8,
+        "tileHeight": 8,
+        "columns": 16,
+
+        "animations": {
+            "0x03": {
+                "image": "res/bg/animWater.png",
+                "totalFrames": 8,
+                "frameWidth": 8,
+                "frameHeight": 8
+            }
+        }
+    },
+
+    "squares": [
+        {
+            "tiles": ["0x00", "0x00", "0x00", "0x00"],
+            "collision": {
+                "solid": false,
+                "ledge": null,
+                "surface": "normal",
+                "talkOver": false
+            },
+            "attributes": {
+                "tags": ["grass"]
+            }
+        },
+        {
+            "tiles": ["0x11", "0x12", "0x13", "0x14"],
+            "collision": {
+                "solid": true,
+                "ledge": null,
+                "surface": "normal",
+                "talkOver": false
+            },
+            "attributes": {
+                "tags": ["wall"]
+            }
+        },
+        {
+            "tiles": ["0x4B", "0x4C", "0x4D", "0x4E"],
+            "collision": {
+                "solid": false,
+                "ledge": null,
+                "surface": "water",
+                "talkOver": false
+            },
+            "attributes": {
+                "tags": ["water"]
+            }
+        },
+        {
+            "tiles": ["0x28", "0x29", "0x38", "0x39"],
+            "collision": {
+                "solid": false,
+                "ledge": null,
+                "surface": "normal",
+                "talkOver": true
+            },
+            "attributes": {
+                "tags": ["counterFront"]
+            }
+        }
+    ],
+
+    "map": {
+        "width": 10,
+        "height": 6,
+
+        "ids": [
+            0, 2, 2, 0, 0, 0, 0, 2, 2, 0,
+            1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+            0, 2, 2, 0, 0, 0, 0, 2, 2, 0,
+            0, 0, 0, 0, 3, 3, 0, 0, 0, 0,
+            0, 2, 2, 0, 0, 0, 0, 2, 2, 0,
+            0, 0, 0, 0, 1, 1, 0, 0, 0, 0
+        ],
+
+        "voidSquare": 0,
+
+        "connections": {
+            "north": { "mapId": "Route2_North", "offset": 5 },
+            "east":  null,
+            "south": { "mapId": "Viridian_South", "offset": 0 },
+            "west":  null
+        }
+    },
+
+    "objects": [
+        {
+            "name": "NPC_Clerk",
+            "kind": "npc",
+            "x": 5,
+            "y": 2,
+            "facing": "south",
+            "script": "clerk_dialogue_01"
+        },
+        {
+            "name": "Item_Ball_Potion",
+            "kind": "item",
+            "x": 8,
+            "y": 4,
+            "itemId": "POTION",
+            "script": "pickup_once"
+        },
+        {
+            "name": "Sign_Town",
+            "kind": "sign",
+            "x": 3,
+            "y": 1,
+            "script": "sign_town_text"
+        }
+    ],
+
+    "encounters": {
+        "land": [
+            { "mon": "PIDGEY",  "minLv": 3, "maxLv": 5, "rate": 20 },
+            { "mon": "RATTATA", "minLv": 2, "maxLv": 4, "rate": 20 },
+            { "mon": "NIDORAN_F", "minLv": 3, "maxLv": 5, "rate": 10 },
+            { "mon": "NIDORAN_M", "minLv": 3, "maxLv": 5, "rate": 10 }
+        ],
+        "water": [
+            { "mon": "GOLDEEN", "minLv": 5, "maxLv": 10, "rate": 30 }
+        ],
+        "rodOld": [
+            { "mon": "MAGIKARP", "minLv": 5, "maxLv": 5, "rate": 70 }
+        ],
+        "rodGood": [
+            { "mon": "GOLDEEN", "minLv": 10, "maxLv": 15, "rate": 60 },
+            { "mon": "POLIWAG", "minLv": 10, "maxLv": 15, "rate": 40 }
+        ],
+        "rodSuper": [
+            { "mon": "GYARADOS", "minLv": 15, "maxLv": 20, "rate": 40 }
+        ],
+
+        "zones": [
+            {
+                "region": { "tl": [2, 1], "br": [7, 3] },
+                "land": [
+                    { "mon": "PIKACHU", "minLv": 5, "maxLv": 7, "rate": 10 }
+                ],
+                "water": [],
+                "rodOld": [],
+                "rodGood": [],
+                "rodSuper": []
+            }
+        ]
+    }
+}
