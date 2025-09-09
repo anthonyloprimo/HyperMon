@@ -27,9 +27,12 @@ I'm not insane.  *You're* insane.
     - To be determined: the core challenge is to do this all with HTML and the DOM - so we're going to attempt to handle graphics solely with `<div>` elements!  This might be scrapped if performance suffers too much, but we will see what happens.
 
 ## Known Bugs:
-- Sometimes when loading the game, the background tiles will appear blurry due to interpolation.  Refreshing will eventually cause it to load without interpolation.  The reason this is happening inconsistently is being investigated
+- This is written in JavaScript, one big bug of a programming langauge.  Won't be fixed.
 
 ## Changelog:
+### v0.0.8
+- Fixed a bug where background tiles (possibly other visual assets as well) would sometimes appear with interpolation despite it being disabled.  Conflicting CSS rules appear to have been causing a race condition that sometimes triggered it.  Should be resolved.
+
 ### v0.0.7
 - Added mapLoader.global.js for loading and parsing maps.
 - Modified tilesets to account for fitting multiple backgrounds in a single div

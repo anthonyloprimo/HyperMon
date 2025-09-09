@@ -33,17 +33,17 @@ html, body {
     width: 160px; height: 144px; aspect-ratio: 160/144; overflow: hidden;
     margin: 0; padding: 0;
     background-color: #FFFFFF;
-    image-rendering: pixelated; image-rendering: crisp-edges;
+    image-rendering: pixelated;
     box-shadow: 0 1px 8px 4px #00000077;
- 
+
     background-image: url("titleTest.gif");
 }
     #gameContainer * {
-        image-rendering: pixelated; image-rendering: crisp-edges;
+        image-rendering: pixelated;
     }
         #gameRoot{
             position:relative; width:160px; height:144px; overflow:hidden;
-            image-rendering: pixelated; image-rendering: crisp-edges;
+            image-rendering: pixelated;
         }
         #layer-bg{
             position:absolute; inset:0;
@@ -62,8 +62,7 @@ html, body {
         @keyframes blink{ 50%{ opacity:0; } }
 
         #layer-bg, #layer-sprites {
-            transform: translate3d(var(--camX, 0px), var(--camY, 0px), 0);
-            will-change: transform;
+            transform: translate(var(--camX, 0px), var(--camY, 0px));
         }
         #layer-bg {
             contain: paint;
@@ -72,7 +71,6 @@ html, body {
             background-image: var(--tileset-url, none);
             background-repeat: no-repeat;
             overflow: hidden;
-            image-rendering: pixelated; image-rendering: crisp-edges; image-rendering: -webkit-optimize-contrast;
         }
 
         .tile.anim-ocean  { background-image: var(--ocean-url,  var(--tileset-url)); background-position: 0 var(--ocean-y, 0px)}
@@ -110,16 +108,16 @@ html, body {
 </div>
 
 <script>
-    let SCALE = 1; // global scale value;
+    let SCALE = 1; // global scale value
 
-    // Integer scaling for a 160x144 logical surface
+    // Integer scaling for 160x144 logical screen
     function fitGameToWindow() {
         const baseW = 160, baseH = 144;
         const w = window.innerWidth, h = window.innerHeight;
 
         // Max integer scale that fits
         SCALE = Math.max(1, Math.floor(Math.min(w / baseW, h / baseH)));
-        if (SCALE < 1) SCALE = 1; // never downscale below 1x (matches your requirement)
+        if (SCALE < 1) SCALE = 1; // never downscale below 1x
 
         $('#gameContainer').css({
             width: `${baseW}px`,
@@ -127,9 +125,10 @@ html, body {
             transform: `scale(${SCALE})`,
             transformOrigin: `center center`
         });
+        console.log(SCALE);
     }
 
-    // Run once and on resize (with a tiny debounce)
+    // Run once and on resize
     let _resizeTimer = null;
     $(window).on('resize', function () {
         if (_resizeTimer) clearTimeout(_resizeTimer);
