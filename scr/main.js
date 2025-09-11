@@ -6,15 +6,37 @@ MapLoader.loadMap("res/bg/maps/", "mapTemplate").then(({ map }) => {
     Renderer.init();
     Renderer.attachMap(map);
     Renderer.drawView(0, 0);
+
+    // spawn player
+    const p = Sprites.spawn({
+        id: 'player',
+        sheet: 'PLAYER_MODE0',
+        x: 32, y: 32,
+        facing: 'down'
+    });
+    Camera.setTarget(p);
 });
 
 // Initialize renderer & scene system
 // Renderer.init();
 const scenes = new SceneManager();
 
-const box = new TextBox();
-box.show(`This is magic!*PAUSE,TEST:\n *DOTS,3:Press A to continue.`);
- 
+// const box = new TextBox();
+// box.show(`This is magic!*PAUSE,TEST:\n *DOTS,3:Press A to continue.`);
+
+// Sprites test mode 0
+Sprites.defineSheet(`PLAYER_MODE0`, {
+    image: `res/spr/overworld/player.png`,
+    cols: 2,
+    mode: 0
+});
+// Sprites test mode 1
+// Sprites.defineSheet(`PLAYER_MODE1`, {
+//     image: `res/spr/overworld/player1.png`,
+//     cols: 4,
+//     mode: 1
+// });
+
 // box.show(`This is a test*DOTS,3:\n ...To see if the DOTS function works!`, {speed: "MED"});
 // Demo scenes you can delete later
 // function TitleScene(){
@@ -68,6 +90,8 @@ function update(dt){
     FocusManager.handleInput({ jp, dt});
 
     scenes.update(dt);
+    Camera.update();
+    Sprites.update({ jp, dt, inputLock: TextBox.anyOpen() });
     Renderer.animate();
 }
 

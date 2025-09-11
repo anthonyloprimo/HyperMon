@@ -32,6 +32,8 @@ I'm not insane.  *You're* insane.
 ## Changelog:
 ### v0.0.8
 - Fixed a bug where background tiles (possibly other visual assets as well) would sometimes appear with interpolation despite it being disabled.  Conflicting CSS rules appear to have been causing a race condition that sometimes triggered it.  Should be resolved.
+- Added player object that moves around in a manner that's more Gen II-esque.
+- Added camera system.  Refined the CSS which prevented the full visible area from being displayed in the viewport.
 
 ### v0.0.7
 - Added mapLoader.global.js for loading and parsing maps.
