@@ -34,6 +34,11 @@
             const subY = -wrap(viewTop)  - GUTTER * TILE;
             document.documentElement.style.setProperty('--camX', subX + 'px');
             document.documentElement.style.setProperty('--camY', subY + 'px');
+
+            // Camera offset for sprites
+            document.documentElement.style.setProperty('--sprX', (-viewLeft) + 'px');
+            document.documentElement.style.setProperty('--sprY', (-viewTop)  + 'px');
+
         }
     };
     g.Camera = Camera;

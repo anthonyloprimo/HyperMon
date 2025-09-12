@@ -266,9 +266,9 @@
         a.el.style.backgroundPosition = `${sx}px ${sy}px`;
 
         // transform: translate first, then optional scaleX(-1)
-        const base = `translate(${a.x}px, ${a.voff ?? -4}px)`;
-        const baseFlipped = `translate(${a.x+16}px, ${a.voff ?? -4}px)`;;
-        a.el.style.transform = a.flip ? `${baseFlipped} scaleX(-1)` : base;
+        // const base = `translate(${a.x}px, ${a.voff ?? -4}px)`;
+        // const baseFlipped = `translate(${a.x+16}px, ${a.voff ?? -4}px)`;;
+        // a.el.style.transform = a.flip ? `${baseFlipped} scaleX(-1)` : base;
 
         const drawX = a.x + (a.flip ? fw : 0);
         const drawY = a.y + (a.voff ?? -4);
@@ -281,13 +281,20 @@
     }
 
     function stampTransform(a) {
-        // const base = `translate(${a.x}px, ${a.y}px)`;
-        // const baseFlipped = `translate(${a.x+16}px, ${a.y}px)`;;
+        // old method...
+        // const base = `translate(${a.x}px, ${a.y + (a.voff ?? -4)}px)`;
+        // const baseFlipped = `translate(${a.x+16}px, ${a.y + (a.voff ?? -4)}px)`;;
         // a.el.style.transform = a.flip ? `${baseFlipped} scaleX(-1)` : base;
         // a.el.style.zIndex = String(100 + Math.floor(a.y / TILE));
-        const base = `translate(${a.x}px, ${a.y + (a.voff ?? -4)}px)`;
-        const baseFlipped = `translate(${a.x+16}px, ${a.y + (a.voff ?? -4)}px)`;;
-        a.el.style.transform = a.flip ? `${baseFlipped} scaleX(-1)` : base;
+
+        const fw = a.def.frameW;
+        const drawX = a.x + (a.flip ? fw : 0);
+        const drawY = a.y + (a.voff ?? -4);
+        a.el.style.transform = a.flip
+            ? `translate(${drawX}px, ${drawY}px) scaleX(-1)`
+            : `translate(${drawX}px, ${drawY}px)`;
+
+        // draw order: same formula renderer uses
         a.el.style.zIndex = String(100 + Math.floor(a.y / TILE));
     }
 })(window);

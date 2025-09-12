@@ -61,8 +61,16 @@ html, body {
         .ui-caret{ position:absolute; right:6px; bottom:4px; animation: blink 600ms steps(1) infinite; }
         @keyframes blink{ 50%{ opacity:0; } }
 
+        /* OLD METHOD FOR MOVING BG AND SPRITE LAYER...
         #layer-bg, #layer-sprites {
             transform: translate(var(--camX, 0px), var(--camY, 0px));
+        }
+        */
+        #layer-bg {
+            transform: translate(var(--camX, 0px), var(--camY, 0px));
+        }
+        #layer-sprites {
+            transform: translate(var(--sprX, 0px), var(--sprY, 0px));
         }
         .tile {
             background-image: var(--tileset-url, none);
@@ -99,8 +107,7 @@ html, body {
     <div id="gameRoot">
         <div id="layer-bg"></div>
         <div id="layer-sprites"></div>
-        <div id="layer-ui">
-        </div>
+        <div id="layer-ui"></div>
     </div>
 </div>
 
