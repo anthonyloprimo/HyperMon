@@ -24,16 +24,26 @@ I'm not insane.  *You're* insane.
     - The raw tile data consists an atlas of the 8x8 hardware tiles, however with one key difference - they are separated by 8px gaps to the right and bottom of each tile.  Originally, they would be together, however in order to utilize CSS sprites to accomplish the DOM-only goal, this would require four smaller <div> elements inside of a larger container - 5 elements per square (a total of 660 elements alone).  That's no good since we'll be manipulating multiple doms to pan the map around.  There will be 1 gutter of tiles around the screen to maintain what looks like smooth scrolling - using a transparent spacing around the tiles lets us use 4 backgrounds per <div> and they won't overlap (16x16 px <div>, so there's always 8px of space around each tile - force transparency and no one tile covers the other)!
     - Animated tiles follow the same rule, but are separate files.  We link animated tiles to their representation in the tileset inside of the map data.
     - Sprites are generally 16x16 px images and are separate files
-    - To be determined: the core challenge is to do this all with HTML and the DOM - so we're going to attempt to handle graphics solely with `<div>` elements!  This might be scrapped if performance suffers too much, but we will see what happens.
+    - Maps are rendered solely within `<div>` elements!
+
+3. Sprites
+    - Sprites utilize sprite sheets, one sheet per specific object and state (item balls, player sprite, flying sprite, NPCs, all separate files)
+    - Animation system utilizes traditional logic (one side, up/down, flip sprites for additional 'frames' or alternate facing), a more modernized approach similar to RPG Maker, and more.
+    - Player sprites (and most all others) are drawn with a -4px offset just like in the original game
 
 ## Known Bugs:
 - This is written in JavaScript, one big bug of a programming langauge.  Won't be fixed.
+- Player doesn't animate when 'bumping' against a solid map square.  When stepping into the void, only half of the animation works (not that the player should be in a situation they can regularly exit the void)
 
 ## Changelog:
+### v0.0.10
+- Added initial collision logic for player.
+
 ### v0.0.8
 - Fixed a bug where background tiles (possibly other visual assets as well) would sometimes appear with interpolation despite it being disabled.  Conflicting CSS rules appear to have been causing a race condition that sometimes triggered it.  Should be resolved.
 - Added player object that moves around in a manner that's more Gen II-esque.
 - Added camera system.  Refined the CSS which prevented the full visible area from being displayed in the viewport.
+- Made - and fixed - a bug where the player sprite jumps all over the place.  That doesn't happen now.
 
 ### v0.0.7
 - Added mapLoader.global.js for loading and parsing maps.

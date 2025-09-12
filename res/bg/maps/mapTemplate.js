@@ -96,7 +96,7 @@ var mapTemplate = {
         {
             "tiles": ["0x05", "0x06", "0x15", "0x16"],
             "collision": {
-                "solid": false,
+                "solid": true,
                 "ledge": null,
                 "surface": "normal",
                 "talkOver": false
@@ -108,7 +108,7 @@ var mapTemplate = {
         {
             "tiles": ["0x25", "0x26", "0x5C", "0x17"],
             "collision": {
-                "solid": false,
+                "solid": true,
                 "ledge": null,
                 "surface": "normal",
                 "talkOver": false
@@ -252,7 +252,7 @@ var mapTemplate = {
         {
             "tiles": ["0x33", "0x33", "0x32", "0x14"],
             "collision": {
-                "solid": true,
+                "solid": false,
                 "ledge": null,
                 "surface": "water",
                 "talkOver": false
@@ -264,7 +264,7 @@ var mapTemplate = {
         {
             "tiles": ["0x33", "0x33", "0x14", "0x14"],
             "collision": {
-                "solid": true,
+                "solid": false,
                 "ledge": null,
                 "surface": "water",
                 "talkOver": false
@@ -276,7 +276,7 @@ var mapTemplate = {
         {
             "tiles": ["0x33", "0x33", "0x14", "0x54"],
             "collision": {
-                "solid": true,
+                "solid": false,
                 "ledge": null,
                 "surface": "water",
                 "talkOver": false
@@ -288,7 +288,7 @@ var mapTemplate = {
         {
             "tiles": ["0x32", "0x14", "0x32", "0x14"],
             "collision": {
-                "solid": true,
+                "solid": false,
                 "ledge": null,
                 "surface": "water",
                 "talkOver": false
@@ -300,7 +300,7 @@ var mapTemplate = {
         {
             "tiles": ["0x14", "0x54", "0x14", "0x54"],
             "collision": {
-                "solid": true,
+                "solid": false,
                 "ledge": null,
                 "surface": "water",
                 "talkOver": false
@@ -312,7 +312,7 @@ var mapTemplate = {
         {
             "tiles": ["0x14", "0x14", "0x14", "0x14"],
             "collision": {
-                "solid": true,
+                "solid": false,
                 "ledge": null,
                 "surface": "water",
                 "talkOver": false

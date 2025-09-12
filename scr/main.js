@@ -5,6 +5,7 @@ MapLoader.loadMap("res/bg/maps/", "mapTemplate").then(({ map }) => {
     if (!map) return;
     Renderer.init();
     Renderer.attachMap(map);
+    Collision.attachMap(map);
     Renderer.drawView(0, 0);
 
     // spawn player
@@ -15,6 +16,8 @@ MapLoader.loadMap("res/bg/maps/", "mapTemplate").then(({ map }) => {
         facing: 'down'
     });
     Camera.setTarget(p);
+
+    Debug.init();
 });
 
 // Initialize renderer & scene system
@@ -92,16 +95,9 @@ function update(dt){
     scenes.update(dt);
     Sprites.update({ jp, dt, inputLock: TextBox.anyOpen() });
     Camera.update();
-    // after Sprites.update(...) and before Camera.update() (or at both points)
-    const a = Sprites.get('player');
-    const cam = window.Camera; // however you expose it
-    const cx = cam.cx, cy = cam.cy;
 
-    // These are the two sums that should equal the on-screen anchor at all times
-    const screenX = a.x + parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sprX')) || 0;
-    const screenY = a.y + parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--sprY')) || 0;
+    Debug.update();
 
-    console.log('sx', screenX, 'expect', cx, '| sy', screenY + (a.voff ?? -4), 'expect', cy + (a.voff ?? -4));
     Renderer.animate();
 }
 

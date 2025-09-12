@@ -12,10 +12,11 @@
 
     // Configs
     const TILE = 16;
-    const TURN_TAP_FRAMES = 6;      // tap threshold to turn without moving
-    const STEP_PIXELS = TILE;       // grid step size
-    const SPEED_PX_PER_SEC = 96;    // ~0.167s per tile @60fps
-    const WALK_FRAME_PERIOD = 6;    // frames between animation frame advances while walking
+    const TURN_TAP_FRAMES = 6;     // tap threshold to turn without moving
+    const STEP_PIXELS = TILE;      // grid step size
+    const SPEED_PX_PER_SEC = 96;   // ~0.167s per tile @60fps
+    const WALK_FRAME_PERIOD = 6;   // frames between animation frame advances while walking
+    const BUMP_FRAME_PERIOD = 12;  // slower animation when moving against wall
 
     // Mode setup
     // CLASSIC - more like gameboy style, using limited frames and sprite flipping to get all directions and frames.
@@ -73,6 +74,8 @@
             targetX: x, targetY: y,
             _pressAge: 0,           // how long current dir key has been held (frames)
             _footFlip: false,       // for Mode 0 up/down alternation
+            bumping: false,         // true when trying to move into a solid square
+            bumpTick: 0
         };
 
         // start in idle frame for the facing
@@ -115,14 +118,16 @@
             // handle taps to turn without moving
             if (dirPressed) {
                 if (a.facing !== dirPressed) {
-                a.facing = dirPressed;
-                a._pressAge = 0;
-                // snap to idle frame for that direction
-                applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, /*walking*/false));
-                stampTransform(a);
-                return;
+                    a.facing = dirPressed;
+                    a._pressAge = 0;
+                    // snap to idle frame for that direction
+                    applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, /*walking*/false));
+                    stampTransform(a);
+                    return;
                 } else {
-                a._pressAge = 0;
+                    a._pressAge = 0;
+                    // a.bumping = false;
+                    // a.bumpTick = 0;
                 }
             }
 
@@ -137,7 +142,24 @@
                 }
             } else {
                 a._pressAge = 0;
+                a.bumping = false;
+                a.bumpTick = 0;
             }
+        }
+
+        // Slow “bump” animation while holding into a blocked direction
+        if (a.bumping && !a.moving) {
+            a.bumpTick++;
+            if ((a.bumpTick % BUMP_FRAME_PERIOD) === 0) {
+                const seq = walkSequenceFor(a, a.facing);        // 2 frames in CLASSIC; 4 in FULL
+                const i = seq.indexOf(a.frameIndex);
+                const next = seq[(i < 0 ? 0 : (i + 1) % seq.length)];
+                // flip logic: same as walking (CLASSIC up/down alternate flip via _footFlip)
+                // a._footFlip = !a._footFlip;
+                applyFrame(a, next, flipFor(a, a.facing, /*walking*/true));
+            }
+            stampTransform(a);  // keep z-index, voff, etc. up to date
+            return;             // don’t fall through to idle
         }
 
         // Move if active
@@ -178,13 +200,43 @@
 
     function startMoveOneTile(a, dir) {
         a.facing = dir;
+
+        // current tile
+        const tx = (a.x / TILE) | 0;
+        const ty = (a.y / TILE) | 0;
+
+        // Check if we can step
+        const res = window.Collision && Collision.canStartStep(tx, ty, dir);
+        if (!res || !res.ok) {
+            // can't move forward
+            a.moving = false;
+            if (!a.bumping) {
+                a.bumping = true;
+                a.bumpTick = 0;
+                const seq = walkSequenceFor(a, dir);
+                applyFrame(a, seq[0], flipFor(a, dir, /*walking*/true));
+            }
+            return;
+        }
+
+        // allowed to move?  clear bump state, walk like normal...
+        a.bumping = false;
         a.moving = true;
         a.animTick = 0;
         a._footFlip = !a._footFlip; // toggled every start; used by Mode 0 up/down
-        if (dir === "left")  a.targetX = a.x - STEP_PIXELS, a.targetY = a.y;
-        if (dir === "right") a.targetX = a.x + STEP_PIXELS, a.targetY = a.y;
-        if (dir === "up")    a.targetY = a.y - STEP_PIXELS, a.targetX = a.x;
-        if (dir === "down")  a.targetY = a.y + STEP_PIXELS, a.targetX = a.x;
+
+        if (res.mode === "WALK") {
+            if (dir === "left")  { a.targetX = a.x - STEP_PIXELS; a.targetY = a.y; }
+            if (dir === "right") { a.targetX = a.x + STEP_PIXELS; a.targetY = a.y; }
+            if (dir === "up")    { a.targetY = a.y - STEP_PIXELS; a.targetX = a.x; }
+            if (dir === "down")  { a.targetY = a.y + STEP_PIXELS; a.targetX = a.x; }
+        } else if (res.mode === "HOP") {
+            // ledges will have two-tile movement, jumping on the first and landing on the second.
+            // const [lx, ly] = res.landing;
+            // a._hop = { active: true, landTx: lx, landTy: ly, t: 0 };
+            // a.targetX = a.x + (dir === "left" ? -STEP_PIXELS : dir === "right" ? STEP_PIXELS : 0);
+            // a.targetY = a.y + (dir === "up" ? -STEP_PIXELS : dir === "down" ? STEP_PIXELS : 0);
+        }
         // kick into the first walk frame immediately
         const seq = walkSequenceFor(a, dir);
         applyFrame(a, seq[0], flipFor(a, dir, true));
