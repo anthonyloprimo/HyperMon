@@ -72,7 +72,7 @@
         const [nx, ny] = step(tx, ty, dir);
         const destSq = squareAt(nx, ny);
         if (!destSq) return { ok: false, reason: "oob" };
-        if (isSolidFromFlags(destSq)) return { ok: AnalyserNode, reason: "solid" };
+        if (isSolidFromFlags(destSq)) return { ok: false, reason: "solid" };
         return { ok: true, mode: "WALK", landing: [nx, ny] };
     }
 })(window);

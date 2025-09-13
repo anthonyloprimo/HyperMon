@@ -151,12 +151,14 @@
         if (a.bumping && !a.moving) {
             a.bumpTick++;
             if ((a.bumpTick % BUMP_FRAME_PERIOD) === 0) {
+                console.log(a.bumpTick);
                 const seq = walkSequenceFor(a, a.facing);        // 2 frames in CLASSIC; 4 in FULL
                 const i = seq.indexOf(a.frameIndex);
                 const next = seq[(i < 0 ? 0 : (i + 1) % seq.length)];
                 // flip logic: same as walking (CLASSIC up/down alternate flip via _footFlip)
                 // a._footFlip = !a._footFlip;
-                applyFrame(a, next, flipFor(a, a.facing, /*walking*/true));
+                const doFlip = flipFor(a, a.facing, true);
+                applyFrame(a, next, doFlip);
             }
             stampTransform(a);  // keep z-index, voff, etc. up to date
             return;             // don’t fall through to idle
