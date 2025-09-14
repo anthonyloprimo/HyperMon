@@ -57,14 +57,10 @@
     }
 
     // Check square flags
-    function isSolidFromFlags(sq) {
+    function isSolidFromCollision(sq) {
         if (!sq) return true;
-        const f = sq.flags|0;
-        const solid = !!(f & 0b1);
-
-        const surfIdx = (f >> 4) & 0b111;
-        const surfaceIsSolid = false;
-        return solid || surfaceIsSolid;
+        const c = sq.collision || {};
+        return !!c.solid;
     }
     // solid/out-of-bounds movement restriction
     // returns: { ok:boolean, mode:"WALK"|"HOP", reason?:string, landing?:[tx,ty] }
@@ -72,7 +68,7 @@
         const [nx, ny] = step(tx, ty, dir);
         const destSq = squareAt(nx, ny);
         if (!destSq) return { ok: false, reason: "oob" };
-        if (isSolidFromFlags(destSq)) return { ok: false, reason: "solid" };
+        if (isSolidFromCollision(destSq)) return { ok: false, reason: "solid" };
         return { ok: true, mode: "WALK", landing: [nx, ny] };
     }
 })(window);

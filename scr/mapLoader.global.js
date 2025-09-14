@@ -191,6 +191,19 @@
             dend();
             return out;
         }
+
+        function normalizeCollision(c) {
+            if (!c) c = {};
+            // allow null or any of the cardinal directions (N, E, S, W) for ledge
+            const ledge = (c.ledge === null || c.ledge === undefined) ? null : String(c.ledge);
+            return {
+                solid: !!c.solid,
+                talkOver: !!c.talkOver,
+                ledge: ledge,
+                surface: c.surface ?? "normal"
+            };
+        }
+
         for (let i = 0; i < rawSquares.length; i++) {
             const sq = rawSquares[i] || {};
             const tiles = sq.tiles || [];
@@ -202,10 +215,10 @@
             const t2 = hexToInt(tiles[2] ?? 0, diags, { square: i, tile: 2 });
             const t3 = hexToInt(tiles[3] ?? 0, diags, { square: i, tile: 3 });
 
-            const flags = compileCollisionFlags(sq.collision || {});
+            const collision = normalizeCollision(sq.collision || {});
             const tags = Array.isArray(sq.attributes?.tags) ? sq.attributes.tags.slice() : [];
 
-            out.push({ tiles: [t0, t1, t2, t3], flags, tags });
+            out.push({ tiles: [t0, t1, t2, t3], collision, tags });
         }
         console.debug(`compiled ${out.length} squares`);
         dend();

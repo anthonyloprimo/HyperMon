@@ -70,7 +70,7 @@
     function formatSquare(label, tx, ty, info) {
         if (!info || !info.sq) return `${label}@(${tx},${ty}): OOB/void`;
         const sq = info.sq;
-        const f  = decodeFlags(sq.flags| 0);
+        const f  = decodeCollision(sq.collision);
         const tags = (sq.attributes && Array.isArray(sq.attributes.tags)) ? sq.attributes.tags.join(",") : "";
         const tiles = Array.isArray(sq.tiles) ? sq.tiles.map(hexTile).join(" ") : "";
         return (
@@ -82,16 +82,16 @@
     }
 
     // decode the flags from MapLoader (collision in the map file is copied to "flags" in the MapLoader object version of the map)
-    function decodeFlags(flags) {
-        const solid     = !!(flags & 0b0000001);
-        const talkOver  = !!(flags & 0b0000010);
-        const ledgeBits = (flags ?? 2) & 0b11;
-        const ledgeMap = { 0: "none", 1: "N", 2: "S", 3: "E" };
-        const ledge = ledgeMap[ledgeBits] ?? "none";
-        const surfIdx = (flags >> 4) & 0b111;
-        const surfMap = ["normal", "water", "ice", "sand"];
-        const surface = surfMap[surfIdx] ?? `custom(${surfIdx})`;
-        return { solid, talkOver, ledge, surface };
+    function decodeCollision(collision) {
+        const c = collision || {};
+        const ledge = (c.ledge == null) ? "none" : String(c.ledge);
+        const surface = (c.surface == null) ? "normal" : String(c.surface);
+        return {
+            solid: !!c.solid,
+            talkOver: !!c.talkover,
+            ledge,
+            surface
+        };
     }
 
     // convert tile index to hext value (0xHH)
