@@ -18,7 +18,6 @@
     let SQUARES = null;
     let GRID = null;
     let VOID_ID = 0;
-    // let MAP = null;
 
     function attachMap(map) {
         // squares - tile definitions w/ collision/attributes
