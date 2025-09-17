@@ -351,4 +351,70 @@
         // draw order: same formula renderer uses
         a.el.style.zIndex = String(100 + Math.floor(a.y / TILE));
     }
+
+    // Ledge hop
+    const HOP_SEQ = (function () {
+        const up = [4, 3, 2, 1, 1, 1];
+        const down = up.slice().reverse();
+        const steps = up.concat(down);
+        // cumulative offsets (negative goes up)
+        const cum = [0];
+        for (let i = 0; i < steps.length; i++) cum.push(cum[i] - steps[i]);
+        return cum; // length 13 (index 0..12), cum[0]=0, cum[6]=-12, cum[12]=0
+    })();
+
+    function startHopMotion(player, dirVec /* {dx,dy} */) {
+        const DIST = 32; // px, two tiles
+        const duration = DIST / SPEED_PX_PER_SEC; // seconds
+        const startX = player.x, startY = player.y;
+
+        // Shadow: appears 8px below the player's ground position, removed on land
+        const SHADOW_FRAME = 0; // TODO: set to your shadow frame index
+        Renderer.addSprite("player_shadow", SHADOW_FRAME, startX, startY + 8);
+
+        player.motion = {
+            kind: "HOP",
+            t: 0,
+            duration,
+            dist: DIST,
+            startX, startY,
+            dir: dirVec,
+            // sample vertical offset from HOP_SEQ by progress
+            yOffsetAt(p) {
+                const idx = Math.max(0, Math.min(HOP_SEQ.length - 1, Math.round(p * (HOP_SEQ.length - 1))));
+                return HOP_SEQ[idx];
+            },
+            onDone() {
+                Renderer.removeSprite("player_shadow");
+            }
+        };
+    }
+
+    // Call this from your main update loop after dt is computed
+    function updateHopMotion(player, dt) {
+        const m = player.motion;
+        if (!m || m.kind !== "HOP") return;
+
+        m.t += dt;
+        const p = (m.t >= m.duration) ? 1 : (m.t / m.duration);
+
+        const travel = m.dist * p;
+        const baseX = m.startX + Math.round(m.dir.dx * travel);
+        const baseY = m.startY + Math.round(m.dir.dy * travel);
+        const yOff = m.yOffsetAt(p);
+
+        // Player sprite moves across two tiles while bobbing 0..-12..0
+        Renderer.updateSprite("player", player.frameIndex, baseX, baseY + yOff);
+
+        // Shadow sticks to ground path (no vertical offset), always +8px
+        Renderer.updateSprite("player_shadow", 0, baseX, baseY + 8);
+
+        if (p >= 1) {
+            // snap final, clear motion
+            Renderer.updateSprite("player", player.frameIndex, m.startX + (m.dir.dx * m.dist), m.startY + (m.dir.dy * m.dist));
+            if (m.onDone) m.onDone();
+            player.motion = null;
+        }
+    }
+
 })(window);

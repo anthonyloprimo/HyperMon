@@ -61,9 +61,44 @@
         const c = sq.collision || {};
         return !!c.solid;
     }
+    function dirToCard(dir) {
+        if (dir === "up") return "N";
+        if (dir === "right") return "E";
+        if (dir === "down") return "S";
+        if (dir === "left") return "W";
+        return String(dir || "").toUpperCase();
+    }
+    function canLedgeHopFrom(tx, ty, dir) {
+        const here = squareAt(tx, ty);
+        if (!here) return null;
+
+        const c = here.collision || {};
+        const want = dirToCard(dir);
+        if (!c.ledge || c.ledge !== want) return null;
+
+        const [nx, ny]  = step(tx, ty, dir);
+        const [lx, ly]  = step(nx, ny, dir);
+        const landingSq = squareAt(lx, ly);
+        if (!landingSq || isSolidFromCollision(landingSq)) return null;
+
+        return { landing: [lx, ly], via: [nx, ny] };
+    }
     // solid/out-of-bounds movement restriction
     // returns: { ok:boolean, mode:"WALK"|"HOP", reason?:string, landing?:[tx,ty] }
     function canStartStep(tx, ty, dir) {
+        // ledge hop check
+        const hop = canLedgeHopFrom(tx, ty, dir);
+        if (hop) {
+            return {
+                ok: true,
+                mode: "HOP",
+                landing: hop.landing,
+                via: hop.via,
+                distanceTiles: 2
+            }
+        }
+
+        // Normal walking
         const [nx, ny] = step(tx, ty, dir);
         const destSq = squareAt(nx, ny);
         if (!destSq) return { ok: false, reason: "oob" };
