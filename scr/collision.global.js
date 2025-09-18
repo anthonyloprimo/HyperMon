@@ -62,38 +62,46 @@
         return !!c.solid;
     }
     function dirToCard(dir) {
-        if (dir === "up") return "N";
-        if (dir === "right") return "E";
-        if (dir === "down") return "S";
-        if (dir === "left") return "W";
-        return String(dir || "").toUpperCase();
+        if (dir == null) return null;
+        const d = String(dir).trim().toUpperCase();
+
+        if (d === "UP" || d === "NORTH") return "N";
+        if (d === "RIGHT" || d === "EAST") return "E";
+        if (d === "DOWN" || d === "SOUTH") return "S";
+        if (d === "LEFT" || d === "WEST") return "W";
+
+        if ("NESW".includes(d)) return d;
+        return d[0] ?? null;
     }
     function canLedgeHopFrom(tx, ty, dir) {
-        const here = squareAt(tx, ty);
-        if (!here) return null;
-
-        const c = here.collision || {};
         const want = dirToCard(dir);
-        if (!c.ledge || c.ledge !== want) return null;
+        const [nx, ny] = step(tx, ty, dir);
+        const edgeSq = squareAt(nx, ny);
+        if (!edgeSq) return null;
 
-        const [nx, ny]  = step(tx, ty, dir);
+        const c = edgeSq.collision || {};
+        const edgeLedge = c.ledge || null;
+        if (edgeLedge !== want) return null;
+
         const [lx, ly]  = step(nx, ny, dir);
         const landingSq = squareAt(lx, ly);
         if (!landingSq || isSolidFromCollision(landingSq)) return null;
 
-        return { landing: [lx, ly], via: [nx, ny] };
+        return { via: [nx, ny], landing: [lx, ly] };
     }
     // solid/out-of-bounds movement restriction
     // returns: { ok:boolean, mode:"WALK"|"HOP", reason?:string, landing?:[tx,ty] }
     function canStartStep(tx, ty, dir) {
         // ledge hop check
         const hop = canLedgeHopFrom(tx, ty, dir);
+        console.debug(hop);
         if (hop) {
+            console.debug("Yes, we can hop!")
             return {
                 ok: true,
                 mode: "HOP",
-                landing: hop.landing,
                 via: hop.via,
+                landing: hop.landing,
                 distanceTiles: 2
             }
         }
@@ -103,6 +111,6 @@
         const destSq = squareAt(nx, ny);
         if (!destSq) return { ok: false, reason: "oob" };
         if (isSolidFromCollision(destSq)) return { ok: false, reason: "solid" };
-        return { ok: true, mode: "WALK", landing: [nx, ny] };
+        return { ok: true, mode: "WALK", landing: [nx, ny], distanceTiles: 1 };
     }
 })(window);

@@ -195,7 +195,12 @@
         function normalizeCollision(c) {
             if (!c) c = {};
             // allow null or any of the cardinal directions (N, E, S, W) for ledge
-            const ledge = (c.ledge === null || c.ledge === undefined) ? null : String(c.ledge);
+            let ledge = null;
+            if (c.ledge !== null && c.ledge !== undefined) {
+                const s = String(c.ledge).trim().toUpperCase();
+                ledge = s ? s[0] : null;
+                if(!("NESW".includes(ledge))) ledge = null;
+            }
             return {
                 solid: !!c.solid,
                 talkOver: !!c.talkOver,

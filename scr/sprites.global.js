@@ -92,6 +92,12 @@
 
     // Per-actor logic
     function tickActor(a, jp, dt) {
+        // HOP motion (ignore input when mid-hop)
+        if (a.motion && a.motion.kind === "HOP") {
+            updateHopMotion(a, dt);
+            return;
+        }
+
         // check if textbox is active...
         if (!jp) {
             a.moving = false;
@@ -233,11 +239,14 @@
             if (dir === "up")    { a.targetY = a.y - STEP_PIXELS; a.targetX = a.x; }
             if (dir === "down")  { a.targetY = a.y + STEP_PIXELS; a.targetX = a.x; }
         } else if (res.mode === "HOP") {
-            // ledges will have two-tile movement, jumping on the first and landing on the second.
-            // const [lx, ly] = res.landing;
-            // a._hop = { active: true, landTx: lx, landTy: ly, t: 0 };
-            // a.targetX = a.x + (dir === "left" ? -STEP_PIXELS : dir === "right" ? STEP_PIXELS : 0);
-            // a.targetY = a.y + (dir === "up" ? -STEP_PIXELS : dir === "down" ? STEP_PIXELS : 0);
+            // we aren't using the normal one-tile movement process...
+            a.moving = false;
+            a.animTick = 0;
+            a._footFlip = !a._footFlip;
+
+            const v = dirToVec(dir);
+            startHopMotion(a, v, res.landing);
+            return;
         }
         // kick into the first walk frame immediately
         const seq = walkSequenceFor(a, dir);
@@ -298,6 +307,21 @@
             return row * cols;
     }
 
+    function dirToVec(dir) {
+        switch (dir) {
+            case "up":    return { dx:  0, dy: -1 };
+            case "right": return { dx:  1, dy:  0 };
+            case "down":  return { dx:  0, dy:  1 };
+            case "left":  return { dx: -1, dy:  0 };
+        }
+        const d = String(dir || "").trim().toUpperCase();
+        if (d === "N" || d === "NORTH") return { dx:  0, dy: -1 };
+        if (d === "E" || d === "EAST")  return { dx:  1, dy:  0 };
+        if (d === "S" || d === "SOUTH") return { dx:  0, dy:  1 };
+        if (d === "W" || d === "WEST")  return { dx: -1, dy:  0 };
+        return { dx: 0, dy: 0};
+    }
+
     // Flip logic:
     //    left/right: Mode 0 uses right art for both; left applies flipX
     //    up/down: Mode 0 alternates flip each *step* to swap “foot”
@@ -325,7 +349,7 @@
         // a.el.style.transform = a.flip ? `${baseFlipped} scaleX(-1)` : base;
 
         const drawX = a.x + (a.flip ? fw : 0);
-        const drawY = a.y + (a.voff ?? -4);
+        const drawY = a.y + (a.voff ?? -4) + (a._hopBob || 0);
         a.el.style.transform = a.flip
             ? `translate(${drawX}px, ${drawY}px) scaleX(-1)`
             : `translate(${drawX}px, ${drawY}px)`;
@@ -343,7 +367,7 @@
 
         const fw = a.def.frameW;
         const drawX = a.x + (a.flip ? fw : 0);
-        const drawY = a.y + (a.voff ?? -4);
+        const drawY = a.y + (a.voff ?? -4) + (a._hopBob || 0);
         a.el.style.transform = a.flip
             ? `translate(${drawX}px, ${drawY}px) scaleX(-1)`
             : `translate(${drawX}px, ${drawY}px)`;
@@ -353,17 +377,22 @@
     }
 
     // Ledge hop
-    const HOP_SEQ = (function () {
-        const up = [4, 3, 2, 1, 1, 1];
-        const down = up.slice().reverse();
-        const steps = up.concat(down);
-        // cumulative offsets (negative goes up)
-        const cum = [0];
-        for (let i = 0; i < steps.length; i++) cum.push(cum[i] - steps[i]);
-        return cum; // length 13 (index 0..12), cum[0]=0, cum[6]=-12, cum[12]=0
-    })();
+    // const HOP_SEQ = (function () {
+    //     const up = [4, 3, 2, 1, 1, 1];
+    //     const down = up.slice().reverse();
+    //     const steps = up.concat(down);
+    //     // cumulative offsets (negative goes up)
+    //     const cum = [0];
+    //     for (let i = 0; i < steps.length; i++) cum.push(cum[i] - steps[i]);
+    //     return cum; // length 13 (index 0..12), cum[0]=0, cum[6]=-12, cum[12]=0
+    // })();
+    function hopBobAt(p, apex) {
+        if (p <= 0 || p >= 1) return 0;
+        const s = Math.sin(Math.PI * p);
+        return -Math.round(apex * s);
+    }
 
-    function startHopMotion(player, dirVec /* {dx,dy} */) {
+    function startHopMotion(player, dirVec /* {dx,dy} */, landingTile /* [tx,ty] */) {
         const DIST = 32; // px, two tiles
         const duration = DIST / SPEED_PX_PER_SEC; // seconds
         const startX = player.x, startY = player.y;
@@ -377,17 +406,25 @@
             t: 0,
             duration,
             dist: DIST,
+            px: 0,
+            apex: 12,
             startX, startY,
             dir: dirVec,
-            // sample vertical offset from HOP_SEQ by progress
-            yOffsetAt(p) {
-                const idx = Math.max(0, Math.min(HOP_SEQ.length - 1, Math.round(p * (HOP_SEQ.length - 1))));
-                return HOP_SEQ[idx];
-            },
+            landingTile: landingTile || null,
+            // yOffsetAt(p) {
+            //     const idx = Math.max(0, Math.min(HOP_SEQ.length - 1, Math.round(p * (HOP_SEQ.length - 1))));
+            //     return HOP_SEQ[idx];
+            // },
             onDone() {
                 Renderer.removeSprite("player_shadow");
             }
         };
+
+        player._hopBob = 0;
+        const seq = walkSequenceFor(player, player.facing);
+        applyFrame(player, seq[0], flipFor(player, player.facing, /*walking*/true));
+
+        stampTransform(player);
     }
 
     // Call this from your main update loop after dt is computed
@@ -395,26 +432,76 @@
         const m = player.motion;
         if (!m || m.kind !== "HOP") return;
 
-        m.t += dt;
-        const p = (m.t >= m.duration) ? 1 : (m.t / m.duration);
+        // m.t += dt;
+        // const p = (m.t >= m.duration) ? 1 : (m.t / m.duration);
 
-        const travel = m.dist * p;
-        const baseX = m.startX + Math.round(m.dir.dx * travel);
-        const baseY = m.startY + Math.round(m.dir.dy * travel);
-        const yOff = m.yOffsetAt(p);
+        // const travel = m.dist * p;
+        // const baseX = m.startX + Math.round(m.dir.dx * travel);
+        // const baseY = m.startY + Math.round(m.dir.dy * travel);
+        // const yOff = m.yOffsetAt(p);
 
-        // Player sprite moves across two tiles while bobbing 0..-12..0
-        Renderer.updateSprite("player", player.frameIndex, baseX, baseY + yOff);
+        const step = (SPEED_PX_PER_SEC * dt) | 0;
+        if (step > 0) m.px = Math.min((m.px || 0) + step, m.dist);
+
+        const p = m.px / m.dist;
+        // const baseX = m.startX + (m.dir.dx * (m.px || 0));
+        // const baseY = m.startY + (m.dir.dy * (m.px || 0));
+        const baseX = m.startX + (m.dir.dx * m.px);
+        const baseY = m.startY + (m.dir.dy * m.px);
+
+        // const idx = Math.max(0, Math.min(HOP_SEQ.length - 1, Math.round(p * (HOP_SEQ.length - 1))));
+        // const yOff = HOP_SEQ[idx];
+        player._hopBob = hopBobAt(p, m.apex);
+
+        // player position
+        player.x = baseX;
+        player.y = baseY;
+        // player._hopBob = yOff;
+        stampTransform(player);
+
+        // maintain walking animation when hopping
+        player.animTick = (player.animTick || 0) + 1;
+        if ((player.animTick % WALK_FRAME_PERIOD) === 0) {
+            const seq = walkSequenceFor(player, player.facing);
+            const i = seq.indexOf(player.frameIndex);
+            const next = seq[(i < 0 ? 0 : (i + 1) % seq.length)];
+            const doFlip = flipFor(player, player.facing, /*walking*/true);
+            applyFrame(player, next, doFlip);
+        }
 
         // Shadow sticks to ground path (no vertical offset), always +8px
         Renderer.updateSprite("player_shadow", 0, baseX, baseY + 8);
 
-        if (p >= 1) {
-            // snap final, clear motion
-            Renderer.updateSprite("player", player.frameIndex, m.startX + (m.dir.dx * m.dist), m.startY + (m.dir.dy * m.dist));
+        if (m.px >= m.dist) {
+            player._hopBob = 0;
+            stampTransform(player);
+            
             if (m.onDone) m.onDone();
             player.motion = null;
+            
+            applyFrame(player, idleFrameFor(player, player.facing), flipFor(player, player.facing, false));
         }
+
+        // if ((m.px || 0) >= m.dist) {
+        //     player._hopBob = 0;
+        //     stampTransform(player);
+        //     if (m.onDone) m.onDone();
+        //     player.motion = null;
+        //     applyFrame(player, idleFrameFor(player, player.facing), flipFor(player, player.facing, false));
+        // }
+
+        // if (p >= 1) {
+        //     // snap final, clear motion and finishes on idle frame.
+        //     player.x = m.startX + (m.dir.dx * m.dist);
+        //     player.y = m.startY + (m.dir.dy * m.dist);
+        //     player._hopBob = 0;
+        //     stampTransform(player);
+
+        //     if (m.onDone) m.onDone();
+        //     player.motion = null;
+
+        //     applyFrame(player, idleFrameFor(player, player.facing), flipFor(player, player.facing, false));
+        // }
     }
 
 })(window);
