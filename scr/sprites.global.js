@@ -12,11 +12,11 @@
 
     // Configs
     const TILE = 16;
-    const TURN_TAP_FRAMES = 6;     // tap threshold to turn without moving
+    const TURN_TAP_FRAMES = 4;     // tap threshold to turn without moving
     const STEP_PIXELS = TILE;      // grid step size
     const SPEED_PX_PER_SEC = 96;   // ~0.167s per tile @60fps
-    const WALK_FRAME_PERIOD = 6;   // frames between animation frame advances while walking
-    const BUMP_FRAME_PERIOD = 12;  // slower animation when moving against wall
+    const WALK_FRAME_PERIOD = 8;   // frames between animation frame advances while walking
+    const BUMP_FRAME_PERIOD = 16;  // slower animation when moving against wall
 
     // Mode setup
     // CLASSIC - more like gameboy style, using limited frames and sprite flipping to get all directions and frames.
@@ -157,12 +157,16 @@
         if (a.bumping && !a.moving) {
             a.bumpTick++;
             if ((a.bumpTick % BUMP_FRAME_PERIOD) === 0) {
-                console.log(a.bumpTick);
                 const seq = walkSequenceFor(a, a.facing);        // 2 frames in CLASSIC; 4 in FULL
                 const i = seq.indexOf(a.frameIndex);
                 const next = seq[(i < 0 ? 0 : (i + 1) % seq.length)];
-                // flip logic: same as walking (CLASSIC up/down alternate flip via _footFlip)
-                // a._footFlip = !a._footFlip;
+
+                // mode 0 up/down flipping for every other step
+                if (a.def.mode === MODE.CLASSIC && (a.facing === "up" || a.facing === "down")) {
+                    const idle = idleFrameFor(a, a.facing);
+                    if (next !== idle) a._footFlip = !a._footFlip;
+                }
+
                 const doFlip = flipFor(a, a.facing, true);
                 applyFrame(a, next, doFlip);
             }
@@ -172,34 +176,47 @@
 
         // Move if active
         if (a.moving) {
-        const step = (SPEED_PX_PER_SEC * dt) | 0; // integer pixels per frame
-        let nx = a.x, ny = a.y;
-        if (a.targetX > a.x) nx = Math.min(a.x + step, a.targetX);
-        if (a.targetX < a.x) nx = Math.max(a.x - step, a.targetX);
-        if (a.targetY > a.y) ny = Math.min(a.y + step, a.targetY);
-        if (a.targetY < a.y) ny = Math.max(a.y - step, a.targetY);
+            const step = (SPEED_PX_PER_SEC * dt) | 0; // integer pixels per frame
+            let nx = a.x, ny = a.y;
+            if (a.targetX > a.x) nx = Math.min(a.x + step, a.targetX);
+            if (a.targetX < a.x) nx = Math.max(a.x - step, a.targetX);
+            if (a.targetY > a.y) ny = Math.min(a.y + step, a.targetY);
+            if (a.targetY < a.y) ny = Math.max(a.y - step, a.targetY);
 
-        a.x = nx; a.y = ny;
-        stampTransform(a);
+            a.x = nx; a.y = ny;
+            stampTransform(a);
 
-        // Advance walk animation
-        a.animTick++;
-        if ((a.animTick % WALK_FRAME_PERIOD) === 0) {
-            // cycle between the walk frames for the facing
-            const seq = walkSequenceFor(a, a.facing);
-            const i = seq.indexOf(a.frameIndex);
-            const next = seq[(i < 0 ? 0 : (i + 1) % seq.length)];
-            // For Mode 0 up/down, alternate horizontal flip each “step”
-            const doFlip = flipFor(a, a.facing, /*walking*/true);
-            applyFrame(a, next, doFlip);
-        }
+            // Advance walk animation
+            a.animTick++;
+            if ((a.animTick % WALK_FRAME_PERIOD) === 0) {
+                // cycle between the walk frames for the facing
+                const seq = walkSequenceFor(a, a.facing);
+                const i = seq.indexOf(a.frameIndex);
+                const next = seq[(i < 0 ? 0 : (i + 1) % seq.length)];
 
-        if (a.x === a.targetX && a.y === a.targetY) {
-            a.moving = false;
-            a.animTick = 0;
-            // settle to idle facing
-            applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, false));
-        }
+                // mode 0 up/down flipping for every other step
+                if (a.def.mode === MODE.CLASSIC && (a.facing === "up" || a.facing === "down")) {
+                    const idle = idleFrameFor(a, a.facing);
+                    if (next !== idle) a._footFlip = !a._footFlip;
+                }
+
+                const doFlip = flipFor(a, a.facing, /*walking*/true);
+                applyFrame(a, next, doFlip);
+            }
+
+            if (a.x === a.targetX && a.y === a.targetY) {
+                a.moving = false;
+
+                if (jp && jp.held && jp.held(a.facing)) {
+                    a._chainMove = true;
+                    startMoveOneTile(a, a.facing);
+                    return;
+                }
+                
+                // settle to idle facing when stopped
+                a.animTick = 0;
+                applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, false));
+            }
         } else {
             // idle: ensure idle frame stays
             applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, false));
@@ -208,6 +225,9 @@
 
     function startMoveOneTile(a, dir) {
         a.facing = dir;
+
+        const chaining = !!a._chainMove;
+        a._chainMove = false;
 
         // current tile
         const tx = (a.x / TILE) | 0;
@@ -230,27 +250,38 @@
         // allowed to move?  clear bump state, walk like normal...
         a.bumping = false;
         a.moving = true;
-        a.animTick = 0;
-        a._footFlip = !a._footFlip; // toggled every start; used by Mode 0 up/down
+
+        if (!chaining) {
+            a.animTick = 0;
+            if (a.def.mode === MODE.CLASSIC && (dir === "up" || dir === "down")) {
+                a._footFlip = !a._footFlip; // toggled every start; used by Mode 0 up/down
+            }
+        }
 
         if (res.mode === "WALK") {
             if (dir === "left")  { a.targetX = a.x - STEP_PIXELS; a.targetY = a.y; }
             if (dir === "right") { a.targetX = a.x + STEP_PIXELS; a.targetY = a.y; }
             if (dir === "up")    { a.targetY = a.y - STEP_PIXELS; a.targetX = a.x; }
             if (dir === "down")  { a.targetY = a.y + STEP_PIXELS; a.targetX = a.x; }
+
+            if (!chaining) {
+                const seq = walkSequenceFor(a, dir);
+                applyFrame(a, seq[0], flipFor(a, dir, true));
+            }
         } else if (res.mode === "HOP") {
             // we aren't using the normal one-tile movement process...
             a.moving = false;
-            a.animTick = 0;
-            a._footFlip = !a._footFlip;
+            // a.animTick = 0;
+            a.animTick = chaining ? a.animTick : 0;
+            // a._footFlip = !a._footFlip;
 
             const v = dirToVec(dir);
             startHopMotion(a, v, res.landing);
             return;
         }
         // kick into the first walk frame immediately
-        const seq = walkSequenceFor(a, dir);
-        applyFrame(a, seq[0], flipFor(a, dir, true));
+        // const seq = walkSequenceFor(a, dir);
+        // applyFrame(a, seq[0], flipFor(a, dir, true));
     }
 
     // Frame/mapping
@@ -432,20 +463,10 @@
         const m = player.motion;
         if (!m || m.kind !== "HOP") return;
 
-        // m.t += dt;
-        // const p = (m.t >= m.duration) ? 1 : (m.t / m.duration);
-
-        // const travel = m.dist * p;
-        // const baseX = m.startX + Math.round(m.dir.dx * travel);
-        // const baseY = m.startY + Math.round(m.dir.dy * travel);
-        // const yOff = m.yOffsetAt(p);
-
         const step = (SPEED_PX_PER_SEC * dt) | 0;
         if (step > 0) m.px = Math.min((m.px || 0) + step, m.dist);
 
         const p = m.px / m.dist;
-        // const baseX = m.startX + (m.dir.dx * (m.px || 0));
-        // const baseY = m.startY + (m.dir.dy * (m.px || 0));
         const baseX = m.startX + (m.dir.dx * m.px);
         const baseY = m.startY + (m.dir.dy * m.px);
 
@@ -465,6 +486,13 @@
             const seq = walkSequenceFor(player, player.facing);
             const i = seq.indexOf(player.frameIndex);
             const next = seq[(i < 0 ? 0 : (i + 1) % seq.length)];
+
+            // flip sprites every other step frame
+            if (player.def.mode === MODE.CLASSIC && (player.facing === "up" || player.facing === "down")) {
+                const idle = idleFrameFor(player, player.facing);
+                if (next !== idle) player._footFlip = !player._footFlip;
+            }
+
             const doFlip = flipFor(player, player.facing, /*walking*/true);
             applyFrame(player, next, doFlip);
         }
