@@ -34,7 +34,7 @@
      *    image:  "res/spr/overworld/player.png"
      *    frameW: 16 (defaults)
      *    frameH: 16 (defaults)
-     *    cols:   number of columns in the sheet (Mode0 2 expects columns, Mode1 expects 4 columns)
+     *    cols:   number of columns in the sheet (Mode0 expects 2 columns, Mode1 expects 4 columns)
      *    mode:   0 | 1 | 2 - based on the mode specified above
      *    map:    optional custom mapping { up:[...], right:[...], down:[...], left:[...] } for MODE.CUSTOM
      */
@@ -256,9 +256,9 @@
     // Frame/mapping
 
     // Mode 0 convention (2 cols x 3 rows):
-    // row0: down [idle, step]  -> frames [0,1]
-    // row1: side [idle, step]  -> frames [2,3] (right-facing art; left is flipped)
-    // row2: up   [idle, step]  -> frames [4,5]
+    // row0: up [idle, step]     -> frames [0,1]
+    // row1: side [idle, step]   -> frames [2,3] (right-facing art; left is flipped)
+    // row2: down   [idle, step] -> frames [4,5]
     function idleFrameFor(a, dir) {
         const m = a.def.mode;
         if (m === MODE.CLASSIC) {

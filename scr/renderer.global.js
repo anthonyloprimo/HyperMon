@@ -22,7 +22,7 @@
         tilesPerRow: 16,
         tileSize: 16,
         tileSheet: 'tileset.png',
-        spritesheet: 'sprites.png',
+        spritesheet: 'staticSprites.png',
  
         // runtime buffers
         _tileEls: [],
