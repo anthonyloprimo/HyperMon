@@ -429,7 +429,7 @@
         const startX = player.x, startY = player.y;
 
         // Shadow: appears 8px below the player's ground position, removed on land
-        const SHADOW_FRAME = 0; // TODO: set to your shadow frame index
+        const SHADOW_FRAME = 9;
         Renderer.addSprite("player_shadow", SHADOW_FRAME, startX, startY + 8);
 
         player.motion = {

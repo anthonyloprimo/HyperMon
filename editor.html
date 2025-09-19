@@ -1,0 +1,2431 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HyperMon Map Editor</title>
+
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="bootstrap.min.css">
+    <script src="scr/jquery-3.4.1.min.js"></script>
+    <script src="bootstrap.bundle.min.js"></script>
+
+    <style>
+        :root { --cell-size: 16px; }
+        /* Layout skeleton (no behavior yet) */
+        html, body {
+            height: 100%;
+            overflow: hidden;
+            font-size: 9pt;
+            user-select: none;
+        }
+            ::placeholder {
+                color: #FFFFFF33 !important;
+            }
+        #workspace {
+            position: absolute;
+            inset: 56px 0 0 0; /* below navbar */
+            display: grid;
+            grid-template-columns: 300px auto 280px; /* left / center / right */
+            gap: 0;
+            overflow: hidden;
+        }
+        #mainSidebar, #metaData {
+            overflow: hidden;
+            background: var(--bs-body-bg);
+        }
+        #mainSidebar {
+            border-right: 1px solid var(--bs-border-color);
+            min-height: 0;
+        }
+        #metaData {
+            border-left: 1px solid var(--bs-border-color);
+            min-height: 0;
+            width: 280px;
+        }
+        .sidebar-scroll {
+            height: 100%;
+            overflow: auto;
+            padding: 0.75rem;
+        }
+        #mapViewer {
+            display: flex;
+            flex-direction: column;
+            min-width: 0;
+            min-height: 0;
+            overflow: hidden;
+            background: var(--bs-body-bg);
+        }
+        #mapViewTools {
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--bs-border-color);
+        }
+        #mapView {
+            position: relative;
+            flex: 1 1 auto;
+            min-width: 0;
+            min-height: 0;
+            overflow: auto;
+            background:
+                repeating-conic-gradient(rgba(255,255,255,.03) 0% 25%, rgba(0,0,0,0) 0% 50%) 0 0 / 24px 24px,
+                var(--bs-body-bg);
+            cursor: default;
+        }
+            #mapView.is-panning {
+                cursor: grabbing;
+            }
+
+        /* Palettes */
+        .pallet {
+            display: grid;
+            grid-template-columns: repeat(16, 16px);
+            gap: 1px;
+        }
+        .tile, .square {
+            width: 16px;     /* 2x visual for tiles (8px*2*? via background-size in future) */
+            height: 16px;
+            background: rgba(255,255,255,0.04);
+            image-rendering: pixelated;
+        }
+            .tile {
+                position: relative;
+                overflow: visible;
+            }
+            .tile .anim-layer {
+                position: absolute;
+                inset: 0;
+                background-repeat: no-repeat;
+                image-rendering: pixelated;
+                pointer-events: none; /* so clicks hit the tile */
+                z-index: 0;
+            }
+        /* Blocks show 2x2 squares */
+        .block {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            grid-auto-rows: 32px;
+            gap: 4px;
+            padding: 4px;
+            border: 1px dashed rgba(255,255,255,0.15);
+            border-radius: 6px;
+            background: rgba(255,255,255,0.02);
+        }
+
+        .square-preview {
+            position: relative;
+            width: 32px;
+            height: 32px;
+            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.03);
+            image-rendering: pixelated;
+        }
+        .square-preview .quad {
+            position: absolute;
+            width: 16px;
+            height: 16px;
+            image-rendering: pixelated;
+            background-repeat: no-repeat;
+        }
+            .square-preview .quad.tl { left: 0;   top: 0; }
+            .square-preview .quad.tr { left: 16px; top: 0; }
+            .square-preview .quad.bl { left: 0;   top: 16px; }
+            .square-preview .quad.br { left: 16px; top: 16px; }
+
+        .block-preview {
+            display: grid;
+            grid-template-columns: repeat(2, 16px);
+            grid-auto-rows: 16px;
+            gap: 0px;
+            padding: 0px;
+            border: 1px solid rgba(255,255,255,0.25);
+            background: rgba(255,255,255,0.03);
+        }
+
+        /* Tabs + tool selector */
+        #toolSelect .nav-link.active {
+            font-weight: 600;
+        }
+
+        /* Small utility spacing */
+        .section-title {
+            font-size: .9rem;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: var(--bs-secondary-color);
+            margin-top: 0.5rem;
+            margin-bottom: 0.25rem;
+        }
+        .sticky-controls {
+            position: sticky;
+            top: 0;
+            padding-top: .25rem;
+            padding-bottom: .5rem;
+            background: var(--bs-body-bg);
+            z-index: 1;
+        }
+
+        #menuBar .dropdown-item small {
+            opacity: .75;
+        }
+            .dropdown-submenu .dropdown-menu {
+                margin-left: .1rem;
+            }
+
+        @keyframes tilePulse {
+            0%   { filter: brightness(.75) contrast(1.0); }
+            50%  { filter: brightness(1.25) contrast(1.25); }
+            100% { filter: brightness(.75) contrast(1.0); }
+        }
+
+        .is-selected {
+            /* outline: 2px solid #6EA8FE; */
+            /* outline-offset: -2px; */
+            animation: tilePulse 1.2s ease-in-out infinite;
+        }
+        .tile.is-selected::after, .square-thumb.is-selected::after {
+            content: "";
+            width: 16px;
+            height: 16px;
+            position: absolute;
+            outline: 2px solid #6EA8FE;
+            outline-offset: -2px;
+            pointer-events: none;
+            animation: tilePulse 1.2s ease-in-out infinite;
+            z-index: 3;
+        }
+
+        /* #mapView.show-grid::after { */
+        #gridOverlay {
+            content: "";
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+            background-image:
+                linear-gradient(to right, rgba(128,128,128,.5) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(128,128,128,.5) 1px, transparent 1px);
+            /* background-size: 16px 16px, 16px 16px; */
+            background-size: var(--cell-size) var(--cell-size), var(--cell-size) var(--cell-size);
+            display: none;
+        }
+        #mapView.show-grid #gridOverlay {
+            display: block;
+        }
+
+        .square-thumb {
+            position: relative;
+            overflow: visible;
+            width: 16px;
+            height: 16px;
+            box-sizing: border-box;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        /* 2×2 layout of 8×8 quadrants inside a 16×16 square */
+        .square-thumb .quad {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            image-rendering: pixelated;
+            background-repeat: no-repeat;
+        }
+
+        /* TL/TR/BL/BR placement */
+        .quad.tl { left: 0;  top: 0; }
+        .quad.tr { left: 8px; top: 0; }
+        .quad.bl { left: 0;  top: 8px; }
+        .quad.br { left: 8px; top: 8px; }
+
+        /* Active quadrant indicator in the preview */
+        #squarePreview .quad.is-active {
+            outline: 1px dashed #6EA8FE;
+            outline-offset: -1px;
+            animation: tilePulse 1.2s ease-in-out infinite;
+        }
+
+        /* Tiny quadrant buttons */
+        #quadPicker .btn {
+            padding: .1rem .35rem;
+            line-height: 1;
+        }
+
+        #mapCanvas {
+            position: relative;
+            display: grid;
+            /* grid-auto-rows: 16px; */
+            grid-auto-rows: var(--cell-size);
+            gap: 0;
+            image-rendering: pixelated;
+            width: max-content;
+            height: max-content;
+        }
+            .map-cell {
+                /* width: 16px;
+                height: 16px; */
+                width: var(--cell-size);
+                height: var(--cell-size);
+                background-repeat: no-repeat, no-repeat, no-repeat, no-repeat;
+                image-rendering: pixelated;
+            }
+                .map-cell:hover {
+                    filter: brightness(1.25);
+                    box-shadow: 0 0 0 2px #00000099 inset;
+                }
+            .map-cell.is-empty {
+                background: repeating-conic-gradient(#D0D0D0 0% 25%, #F0F0F0 0% 50%) 0 0 / 8px 8px;
+            }
+            .map-cell.is-preview {
+                outline: 1px dashed rgba(192,168,1,1);
+                outline-offset: -1px;
+            }
+
+        #edtitorContainer {
+            overflow: auto;
+        }
+
+    </style>
+</head>
+<body>
+
+    <!-- Top Menubar -->
+    <nav id="menuBar" class="navbar navbar-expand-lg navbar-dark bg-dark border-bottom">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">HyperMon Map Editor</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainMenu" aria-controls="mainMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="mainMenu">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <!-- File -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">File</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="menu-new">New <small class="ms-2 text-secondary">Ctrl+N</small></a></li>
+                            <li><a class="dropdown-item" href="#" id="menu-open">Open… <small class="ms-2 text-secondary">Ctrl+O</small></a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li class="dropdown-submenu dropend">
+                                <a class="dropdown-item dropdown-toggle" href="#">Save As…</a>
+                                <ul class="dropdown-menu">
+                                    <li><a class="dropdown-item" href="#" id="menu-save-json">JSON (.json)</a></li>
+                                    <li><a class="dropdown-item" href="#" id="menu-save-js">JS w/ variable (.js)</a></li>
+                                </ul>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="#" id="menu-validate">Validate</a></li>
+                            <li><a class="dropdown-item" href="#" id="menu-close">Close</a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Edit (placeholder for undo/redo, etc.) -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Edit</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="menu-undo">Undo <small class="ms-2 text-secondary">Ctrl+Z</small></a></li>
+                            <li><a class="dropdown-item" href="#" id="menu-redo">Redo <small class="ms-2 text-secondary">Ctrl+Y</small></a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Help -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">Help</a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="#" id="menu-about">About</a></li>
+                            <li><a class="dropdown-item" href="#" id="menu-tutorial">Tutorial</a></li>
+                            <li><a class="dropdown-item" href="#" id="menu-docs">Documentation</a></li>
+                            <li><a class="dropdown-item" href="#" id="menu-bugs">Report a bug</a></li>
+                            <li><a class="dropdown-item" href="#" id="menu-github">Open GitHub</a></li>
+                        </ul>
+                    </li>
+                </ul>
+
+                <!-- Right side status (optional) -->
+                <span class="navbar-text">
+                    <span class="badge text-bg-secondary">Schema 1</span>
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Workspace -->
+    <div id="workspace">
+        <!-- LEFT: Main Sidebar -->
+        <div id="mainSidebar" class="sideBar">
+            <div class="sidebar-scroll">
+                <!-- Tool selector tabs -->
+                <ul id="toolSelect" class="nav nav-tabs sticky-controls" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="tiles-tab" data-bs-toggle="tab" data-bs-target="#tileConfig" type="button" role="tab" aria-controls="tileConfig" aria-selected="true">
+                            Tiles
+                        </button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="objects-tab" data-bs-toggle="tab" data-bs-target="#objectConfig" type="button" role="tab" aria-controls="objectConfig" aria-selected="false">
+                            Objects
+                        </button>
+                    </li>
+                </ul>
+
+                <div class="tab-content pt-3">
+                    <!-- TILES / SQUARES / BLOCKS -->
+                    <div class="tab-pane fade show active" id="tileConfig" role="tabpanel" aria-labelledby="tiles-tab">
+                        <!-- Tileset selection -->
+                        <div id="tilesetSelection" class="mb-3">
+                            <div class="section-title">Tileset</div>
+                            <div class="row g-2 align-items-center">
+                                <div class="col-12">
+                                    <label class="form-label mb-1">Tileset Image</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control form-control-sm" id="tilesetImage" placeholder="res/bg/tilesOutdoorA.png">
+                                        <button class="btn btn-sm btn-outline-secondary" type="button" id="btnPickTileset">Browse</button>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <label for="tileWidth" class="form-label mb-1">Tile W</label>
+                                    <input type="number" class="form-control form-control-sm" name="tileWidth" id="tileWidth" placeholder="8" value="8" min="1">
+                                </div>
+                                <div class="col-4">
+                                    <label for="tileHeight" class="form-label mb-1">Tile H</label>
+                                    <input type="number" class="form-control form-control-sm" name="tileHeight" id="tileHeight" placeholder="8" value="8" min="1">
+                                </div>
+                                <div class="col-4">
+                                    <label for="tilesetColumns" class="form-label mb-1">Columns</label>
+                                    <input type="number" class="form-control form-control-sm" id="tilesetColumns" placeholder="16" value="16" min="1">
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+
+                        <!-- Tile palette -->
+                        <div id="tilePallet" class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="section-title mb-0">Tiles</div>
+                                <div class="btn-group btn-group-sm" role="group">
+                                    <button class="btn btn-outline-secondary" id="btnTileZoomOut">-</button>
+                                    <button class="btn btn-outline-secondary" id="btnTileZoomReset">100%</button>
+                                    <button class="btn btn-outline-secondary" id="btnTileZoomIn">+</button>
+                                </div>
+                            </div>
+                            <div class="pallet" id="tilesGrid">
+                                <!-- Tiles will be generated dynamically; placeholders here for structure -->
+                                <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                                <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                                <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                                <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                                <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                                <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                                <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                                <div class="tile"></div><div class="tile"></div><div class="tile"></div><div class="tile"></div>
+                            </div>
+
+                            <!-- Animated tiles -->
+                            <div id="animatedTiles" class="mt-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="isAnimatedTile" id="isAnimatedTile" data-bs-toggle="collapse" data-bs-target="#animCollapse" aria-expanded="false" aria-controls="animCollapse">
+                                    <label class="form-check-label" for="isAnimatedTile">Is animated tile</label>
+                                </div>
+                                <div id="animCollapse" class="collapse mt-1">
+                                    <div id="animatedTileSettings" class="row g-2 mt-1">
+                                        <div class="col-12">
+                                            <label class="form-label mb-1">Animation Image</label>
+                                            <div class="input-group input-group-sm">
+                                                <input type="text" class="form-control" id="animImage" placeholder="res/bg/animWater.png">
+                                                <button class="btn btn-outline-secondary" type="button" id="btnPickAnim">Browse</button>
+                                            </div>
+                                        </div>
+                                        <div class="col-4">
+                                            <label for="totalFrames" class="form-label mb-1">Frames</label>
+                                            <input type="number" class="form-control form-control-sm" name="totalFrames" id="totalFrames" placeholder="8" min="1">
+                                        </div>
+                                        <div class="col-4">
+                                            <label for="frameWidth" class="form-label mb-1">Frame W</label>
+                                            <input type="number" class="form-control form-control-sm" name="frameWidth" id="frameWidth" placeholder="8" min="1">
+                                        </div>
+                                        <div class="col-4">
+                                            <label for="frameHeight" class="form-label mb-1">Frame H</label>
+                                            <input type="number" class="form-control form-control-sm" name="frameHeight" id="frameHeight" placeholder="8" min="1">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+                        
+                        <!-- Squares -->
+                        <div id="squaresPallet" class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="section-title mb-0">Squares</div>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary" id="btnAddSquare">+</button>
+                                    <button class="btn btn-sm btn-outline-danger" id="btnRemoveSquare">−</button>
+                                </div>
+                            </div>
+                            <div class="pallet" id="squaresGrid">
+                                <div class="square"></div>
+                                <div class="square"></div>
+                                <!-- Dynamically filled later -->
+                            </div>
+
+                            <div id="squareSettings" class="mt-3">
+                                <div class="section-title">Square Settings</div>
+                                <div class="d-flex align-items-center gap-2 mb-2">
+                                    <div class="text-secondary small">Preview:</div>
+                                    <div class="square-preview" id="squarePreview"></div>
+                                </div>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="squareSolid">
+                                            <label class="form-check-label" for="squareSolid">Solid</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label mb-1" for="squareSurface">Surface</label>
+                                        <select id="squareSurface" class="form-select form-select-sm">
+                                            <option value="normal">normal</option>
+                                            <option value="wall">wall</option>
+                                            <option value="water">water</option>
+                                            <option value="solid">solid</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <label class="form-label mb-1" for="squareLedge">Ledge</label>
+                                        <select id="squareLedge" class="form-select form-select-sm">
+                                            <option value="">none</option>
+                                            <option value="E">east</option>
+                                            <option value="S">south</option>
+                                            <option value="W">west</option>
+                                            <!-- north deliberately omitted; can add if needed -->
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="squareTalkOver">
+                                            <label class="form-check-label" for="squareTalkOver">Talk-Over</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label mb-1" for="squareTags">Tags</label>
+                                        <input type="text" class="form-control form-control-sm" id="squareTags" placeholder="comma,separated,tags">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <hr>
+                        
+                        <!-- Blocks (collapsed unless enabled) -->
+                        <div class="mt-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="showBlocks" id="showBlocks" data-bs-toggle="collapse" data-bs-target="#blocksPallet" aria-expanded="false" aria-controls="blocksPallet" disabled>
+                                <label class="form-check-label" for="showBlocks">Use blocks for map</label>
+                            </div>
+                            <div id="blocksPallet" class="collapse mt-2">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <div class="section-title mb-0">Blocks</div>
+                                    <div class="d-flex align-items-center gap-2 mb-2">
+                                        <div class="text-secondary small">Selected Block:</div>
+                                        <div class="block-preview" id="blockPreview">
+                                            <!-- four 16×16 cells visualized -->
+                                            <div class="square"></div>
+                                            <div class="square"></div>
+                                            <div class="square"></div>
+                                            <div class="square"></div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-primary" id="btnAddBlock">+</button>
+                                        <button class="btn btn-sm btn-outline-danger" id="btnRemoveBlock">−</button>
+                                    </div>
+                                </div>
+                                <div class="pallet" id="blocksGrid">
+                                    <div class="block">
+                                        <div class="square"></div>
+                                        <div class="square"></div>
+                                        <div class="square"></div>
+                                        <div class="square"></div>
+                                    </div>
+                                    <div class="block">
+                                        <div class="square"></div>
+                                        <div class="square"></div>
+                                        <div class="square"></div>
+                                        <div class="square"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- OBJECTS -->
+                    <div class="tab-pane fade" id="objectConfig" role="tabpanel" aria-labelledby="objects-tab">
+                        <div id="objectPallet" class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <div class="section-title mb-0">Objects</div>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-primary" id="btnAddObject">+</button>
+                                    <button class="btn btn-sm btn-outline-danger" id="btnRemoveObject">−</button>
+                                </div>
+                            </div>
+                            <div class="pallet" id="objectsGrid">
+                                <!-- Objects are 2x view; thumbnails later -->
+                                <div class="square"></div>
+                                <div class="square"></div>
+                            </div>
+                        </div>
+
+                        <div id="objectSettings">
+                            <div class="section-title">Object Settings</div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label mb-1" for="objName">Name</label>
+                                    <input type="text" class="form-control form-control-sm" id="objName" placeholder="NPC_Clerk">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1" for="objKind">Kind</label>
+                                    <select id="objKind" class="form-select form-select-sm">
+                                        <option value="npc">npc</option>
+                                        <option value="item">item</option>
+                                        <option value="sign">sign</option>
+                                        <option value="warp">warp</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1" for="objX">X</label>
+                                    <input type="number" class="form-control form-control-sm" id="objX" min="0" value="0">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1" for="objY">Y</label>
+                                    <input type="number" class="form-control form-control-sm" id="objY" min="0" value="0">
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1" for="objFacing">Facing</label>
+                                    <select id="objFacing" class="form-select form-select-sm">
+                                        <option value="north">north</option>
+                                        <option value="east">east</option>
+                                        <option value="south" selected>south</option>
+                                        <option value="west">west</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1" for="objSprite">Sprite</label>
+                                    <div class="input-group input-group-sm">
+                                        <input type="text" class="form-control" id="objSprite" placeholder="res/sprites/npc_clerk.png">
+                                        <button class="btn btn-outline-secondary" type="button" id="btnPickSprite">Browse</button>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1" for="objAnimation">Animation</label>
+                                    <select id="objAnimation" class="form-select form-select-sm">
+                                        <option value="">none</option>
+                                        <option value="idle">idle</option>
+                                        <option value="walk">walk</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label mb-1" for="objScript">Script</label>
+                                    <input type="text" class="form-control form-control-sm" id="objScript" placeholder="clerk_dialogue_01">
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label mb-1" for="objItemId">Item (if kind=item)</label>
+                                    <input type="text" class="form-control form-control-sm" id="objItemId" placeholder="POTION">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div> <!-- /tab-content -->
+            </div> <!-- /sidebar-scroll -->
+        </div>
+
+        <!-- CENTER: Map Viewer -->
+        <div id="mapViewer">
+            <!-- View tabs -->
+            <ul id="viewSelect" class="nav nav-tabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="mapEditor-tab" data-bs-toggle="tab" data-bs-target="#mapEditorPanel" type="button" role="tab" aria-controls="mapEditorPanel" aria-selected="true">
+                        Map Editor
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="encounterEditor-tab" data-bs-toggle="tab" data-bs-target="#encounterEditorPanel" type="button" role="tab" aria-controls="encounterEditorPanel" aria-selected="false">
+                        Encounter Editor
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Toolbar -->
+            <div id="mapViewTools" class="d-flex align-items-center gap-2">
+                <div class="btn-group btn-group-sm" role="group" aria-label="Zoom">
+                    <button class="btn btn-outline-secondary" id="btnZoomOut">Zoom Out</button>
+                    <button class="btn btn-outline-secondary" id="btnZoomReset">Reset</button>
+                    <button class="btn btn-outline-secondary" id="btnZoomIn">Zoom In</button>
+                </div>
+
+                <div class="vr mx-2"></div>
+
+                <div class="btn-group btn-group-sm" role="group" aria-label="Tools">
+                    <button class="btn btn-outline-primary active" id="toolDraw">Draw</button>
+                    <button class="btn btn-outline-primary" id="toolRect">Rectangle</button>
+                    <button class="btn btn-outline-primary" id="toolFill">Fill</button>
+                    <button class="btn btn-outline-secondary" id="toolEyedropper">Eyedropper</button>
+                </div>
+
+                <div class="vr mx-2"></div>
+
+                <div class="btn-group btn-group-sm" role="group" aria-label="View">
+                    <button class="btn btn-outline-secondary" id="toggleGrid">Grid</button>
+                </div>
+
+                <div class="ms-3 small text-secondary flex-grow-1">
+                    LMB: Place square/block, RMB: Remove
+                </div>
+
+                <div class="form-check form-switch ms-auto">
+                    <input class="form-check-input" type="checkbox" id="toggleAnimPreview">
+                    <label class="form-check-label" for="toggleAnimPreview">Animate preview</label>
+                </div>
+            </div>
+
+            <!-- Views -->
+            <div id="edtitorContainer" class="tab-content flex-grow-1 min-0">
+                <!-- Map Editor Panel -->
+                <div class="tab-pane fade show active h-100" id="mapEditorPanel" role="tabpanel" aria-labelledby="mapEditor-tab">
+                    <div id="mapView" class="h-100">
+                        <!-- Map canvas/DOM goes here -->
+                    </div>
+                </div>
+
+                <!-- Encounter Editor Panel -->
+                <div class="tab-pane fade h-100" id="encounterEditorPanel" role="tabpanel" aria-labelledby="encounterEditor-tab">
+                    <div class="h-100 d-flex flex-column">
+                        <div class="p-3 border-bottom">
+                            <div class="section-title">Global Encounter Tables</div>
+                            <div class="row g-2">
+                                <div class="col-6 col-xl-4">
+                                    <label class="form-label mb-1">Land</label>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-dark table-striped align-middle mb-2">
+                                            <thead><tr><th>Mon</th><th>Min</th><th>Max</th><th>Rate</th><th></th></tr></thead>
+                                            <tbody id="tblLand"><tr><td colspan="5" class="text-secondary">Add rows later…</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary">Add</button>
+                                </div>
+                                <div class="col-6 col-xl-4">
+                                    <label class="form-label mb-1">Water</label>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-dark table-striped align-middle mb-2">
+                                            <thead><tr><th>Mon</th><th>Min</th><th>Max</th><th>Rate</th><th></th></tr></thead>
+                                            <tbody id="tblWater"><tr><td colspan="5" class="text-secondary">Add rows later…</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary">Add</button>
+                                </div>
+                                <div class="col-12 col-xl-4">
+                                    <label class="form-label mb-1">Rods</label>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-dark table-striped align-middle mb-2">
+                                            <thead><tr><th>Rod</th><th>Mon</th><th>Min</th><th>Max</th><th>Rate</th><th></th></tr></thead>
+                                            <tbody id="tblRods"><tr><td colspan="6" class="text-secondary">Add rows later…</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary">Add</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="p-3 border-bottom">
+                            <div class="section-title">Zones</div>
+                            <div class="row g-2">
+                                <div class="col-12 col-lg-6">
+                                    <div class="border rounded p-2">
+                                        <div class="small text-secondary mb-2">Draw/resize zones on the map; values appear here</div>
+                                        <div class="table-responsive">
+                                            <table class="table table-sm table-dark table-striped align-middle mb-2">
+                                                <thead><tr><th>#</th><th>TL (x,y)</th><th>BR (x,y)</th><th></th></tr></thead>
+                                                <tbody id="tblZones"><tr><td colspan="4" class="text-secondary">No zones</td></tr></tbody>
+                                            </table>
+                                        </div>
+                                        <button class="btn btn-sm btn-outline-secondary">Add Zone</button>
+                                    </div>
+                                </div>
+                                <div class="col-12 col-lg-6">
+                                    <div class="small text-secondary mb-2">Selected Zone Encounters</div>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-dark table-striped align-middle mb-2">
+                                            <thead><tr><th>Table</th><th>Mon</th><th>Min</th><th>Max</th><th>Rate</th><th></th></tr></thead>
+                                            <tbody id="tblZoneEncounters"><tr><td colspan="6" class="text-secondary">Select a zone</td></tr></tbody>
+                                        </table>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-secondary">Add Row</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-grow-1">
+                            <!-- Optional: zone preview overlay shares #mapView later -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: Meta Data Sidebar -->
+        <div id="metaData" class="sidebar">
+            <div class="sidebar-scroll">
+                <div id="mapConfig" class="mb-3">
+                    <div class="section-title">Map Info</div>
+                    <div class="mb-2">
+                        <label for="mapNameField" class="form-label mb-1">Map Name</label>
+                        <input type="text" class="form-control form-control-sm" name="mapNameField" id="mapNameField" placeholder="ExampleMap">
+                    </div>
+                    <div class="mb-2">
+                        <label for="schemaVersion" class="form-label mb-1">Schema</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" name="schemaVersion" id="schemaVersion" value="1" disabled>
+                            <button class="btn btn-outline-secondary" type="button" id="btnMigrate">Upgrade…</button>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label for="mapBGM" class="form-label mb-1">BGM</label>
+                        <div class="input-group input-group-sm">
+                            <input type="text" class="form-control" id="mapBGM" placeholder="res/bgm/04 Pallet Town.mp3">
+                            <button class="btn btn-outline-secondary" type="button" id="btnPickBGM">Browse</button>
+                        </div>
+                        <div class="d-grid mt-2">
+                            <button class="btn btn-sm btn-outline-primary" type="button" id="btnPlayStopBGM">Play / Stop Music</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mapDimensions" class="mb-3">
+                    <div class="section-title">Dimensions</div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label mb-1" for="mapWidth">Width</label>
+                            <input type="number" class="form-control form-control-sm" id="mapWidth" min="1" value="20">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label mb-1" for="mapHeight">Height</label>
+                            <input type="number" class="form-control form-control-sm" id="mapHeight" min="1" value="18">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label mb-1" for="voidSquare">Void Square</label>
+                            <input type="number" class="form-control form-control-sm" id="voidSquare" min="0" value="0">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label mb-1" for="resizeAnchor">Resize Anchor</label>
+                            <select id="resizeAnchor" class="form-select form-select-sm">
+                                <option value="tl">Top-Left</option>
+                                <option value="center">Center</option>
+                                <option value="br">Bottom-Right</option>
+                            </select>
+                        </div>
+                        <div class="col-12 d-grid">
+                            <button class="btn btn-sm btn-outline-secondary mt-2" id="btnApplyResize">Apply Resize</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="mapConnections" class="mb-3">
+                    <div class="section-title">Connections</div>
+                    <div class="row g-2">
+                        <div class="col-12">
+                            <label class="form-label mb-1">North</label>
+                            <div class="input-group input-group-sm mb-1">
+                                <span class="input-group-text">mapId</span>
+                                <input type="text" class="form-control" id="connNorthId" placeholder="Route2_North">
+                            </div>
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text">offset</span>
+                                <input type="number" class="form-control" id="connNorthOffset" value="5">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label mb-1">East</label>
+                            <div class="input-group input-group-sm mb-1">
+                                <span class="input-group-text">mapId</span>
+                                <input type="text" class="form-control" id="connEastId" placeholder="">
+                            </div>
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text">offset</span>
+                                <input type="number" class="form-control" id="connEastOffset" value="0">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label mb-1">South</label>
+                            <div class="input-group input-group-sm mb-1">
+                                <span class="input-group-text">mapId</span>
+                                <input type="text" class="form-control" id="connSouthId" placeholder="Viridian_South">
+                            </div>
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text">offset</span>
+                                <input type="number" class="form-control" id="connSouthOffset" value="0">
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label mb-1">West</label>
+                            <div class="input-group input-group-sm mb-1">
+                                <span class="input-group-text">mapId</span>
+                                <input type="text" class="form-control" id="connWestId" placeholder="">
+                            </div>
+                            <div class="input-group input-group-sm mb-2">
+                                <span class="input-group-text">offset</span>
+                                <input type="number" class="form-control" id="connWestOffset" value="0">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="exportImport" class="mb-3">
+                    <div class="section-title">I/O</div>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-sm btn-outline-primary" id="btnOpen">Open…</button>
+                        <button class="btn btn-sm btn-outline-success" id="btnSaveJson">Save as JSON</button>
+                        <button class="btn btn-sm btn-outline-success" id="btnSaveJs">Save as JS</button>
+                        <button class="btn btn-sm btn-outline-secondary" id="btnValidate">Validate</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div> <!-- /workspace -->
+
+    <!-- HIDDEN FILE INPUTS TO ALLOW FOR FILE UPLOADS IN ANY ENVIRONMENT (INCLUDING LOCAL FILE) -->
+    <input type="file" id="pickTilesetFile" accept="image/*" hidden>
+    <input type="file" id="pickAnimFile" accept="image/*" hidden>
+
+<script>
+/* =========================================================================
+HyperMon Editor – minimal bootstrap
+- Renders tile palette at 2× (16px each), 16 across, 1px gap
+- Handles tile selection highlight
+- Wires Grid toggle for map view
+- Provides a tiny editor state skeleton we’ll expand
+========================================================================= */
+
+(function () {
+    "use strict";
+
+    /* ------------------------------ State ------------------------------ */
+
+    const state = {
+        tileset: {
+            imagePath: "res/bg/tilesOutdoorA.png",
+            tileWidth: 8,
+            tileHeight: 8,
+            columns: 16,
+            gapX: 8,
+            gapY: 8,
+            image: null,                // HTMLImageElement once loaded
+            pixelWidth: 0,
+            pixelHeight: 0,
+            animations: {             // { [tileIndex:number]: { image:string, totalFrames:number, frameWidth:number, _frame?:number } }
+                originalAnimationPath: "res/bg/animatedTiles.png"
+            },
+            originalImagePath: "res/bg/tilesOutdoorA.png",
+        },
+        ui: {
+            displayScale: 2,            // 8px tiles -> 16px display
+            selectedTileIndex: null,    // 0-based index into full tileset
+            gridOn: false,
+            activeQuadrant: "tl",       // tl, tr, bl, br
+            selectedSquareIndex: 0,
+            animatePreviewOn: true
+        },
+        // Stubs we’ll flesh out
+        squares: [
+            { tiles: [null, null, null, null], collision: { solid: false, ledge: null, surface: "normal", talkOver: false }, attributes: { tags: [] } }
+        ],
+        blocks: [],                     // [{squares:[tl,tr,bl,br]}]
+        map: {
+            width: 20,
+            height: 18,
+            ids: [],                    // filled once we load a map
+            voidSquare: 0,
+            _cells: [],
+            _canvas: null
+        }
+    };
+
+    /* ------------------------------ DOM ------------------------------- */
+
+    const els = {
+        tilesetImage: document.getElementById("tilesetImage"),
+        tileWidth: document.getElementById("tileWidth"),
+        tileHeight: document.getElementById("tileHeight"),
+        tilesetColumns: document.getElementById("tilesetColumns"),
+        tilesGrid: document.getElementById("tilesGrid"),
+
+        squaresGrid: document.getElementById("squaresGrid"),
+        squarePreview: document.getElementById("squarePreview"),
+        quadPicker: document.getElementById("quadPicker"),
+        btnAddSquare: document.getElementById("btnAddSquare"),
+        btnRemoveSquare: document.getElementById("btnRemoveSquare"),
+        
+        isAnimatedTile: document.getElementById("isAnimatedTile"),
+        animCollapse: document.getElementById("animCollapse"),
+        animImage: document.getElementById("animImage"),
+        totalFrames: document.getElementById("totalFrames"),
+        frameWidth: document.getElementById("frameWidth"),
+        frameHeight: document.getElementById("frameHeight"),
+        toggleAnimPreview: document.getElementById("toggleAnimPreview"),
+
+        toggleGridBtn: document.getElementById("toggleGrid"),
+        mapView: document.getElementById("mapView"),
+        btnPickTileset: document.getElementById("btnPickTileset"),
+        btnPickAnim: document.getElementById("btnPickAnim"),
+        pickTilesetFile: document.getElementById("pickTilesetFile"),
+        pickAnimFile: document.getElementById("pickAnimFile"),
+
+        squareSolid: document.getElementById("squareSolid"),
+        squareSurface: document.getElementById("squareSurface"),
+        squareLedge: document.getElementById("squareLedge"),
+        squareTalkOver: document.getElementById("squareTalkOver"),
+        squareTags: document.getElementById("squareTags"),
+    };
+
+    /* --------------------------- Utilities ---------------------------- */
+
+    function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+
+    function hexIndex(i) {
+        // Convert integer index to "0x??" for later save/UI display (2-digit or more)
+        return "0x" + i.toString(16).toUpperCase().padStart(2, "0");
+    }
+
+    function clearChildren(node) {
+        while (node.firstChild) node.removeChild(node.firstChild);
+    }
+
+    /* ---------------------- Tileset loading/render --------------------- */
+
+    function loadTilesetImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = (e) => reject(e);
+            img.src = src;
+        });
+    }
+
+    function buildTilePalette() {
+        const { image, pixelWidth, pixelHeight, tileWidth, tileHeight, columns } = state.tileset;
+        if (!image) return;
+
+        // Compute rows by image dimensions & tile geometry
+        const tilesAcross = columns;
+        // const tilesDown = Math.floor(pixelHeight / tileHeight);
+        // const totalTiles = (tilesAcross * tilesDown)/2;
+        // const tilesDown = Math.floor(pixelHeight / (tileHeight * 2));
+        const tilesDown = Math.floor(pixelHeight / pitchY());
+        const totalTiles = tilesAcross * tilesDown;
+
+        // Prepare grid container: force exactly 16 columns at display scale (your CSS already does)
+        clearChildren(els.tilesGrid);
+
+        // Precompute background-size so each tile shows at 2×
+        // We scale the whole image by 'displayScale' so each tile occupies 16×16 in CSS pixels.
+        const bgSizeW = pixelWidth * state.ui.displayScale;
+        const bgSizeH = pixelHeight * state.ui.displayScale;
+
+        for (let i = 0; i < totalTiles; i++) {
+            const tile = document.createElement("div");
+            tile.className = "tile";
+            tile.dataset.index = String(i);
+
+            // Determine the tile’s source x/y (in tiles)
+            const tx = i % tilesAcross;
+            const ty = Math.floor(i / tilesAcross);
+
+            // Position background so the 16×16 view shows only that tile
+            // background-size is the scaled image dimensions; position uses scaled coords.
+            // const posX = -(tx * state.tileset.tileWidth * state.ui.displayScale * 2);
+            // const posY = -(ty * state.tileset.tileHeight * state.ui.displayScale * 2);
+            const posX = -(tx * tilesetStrideX() * state.ui.displayScale);
+            const posY = -(ty * tilesetStrideY() * state.ui.displayScale);
+
+            tile.style.backgroundImage = `url("${state.tileset.imagePath}")`;
+            tile.style.backgroundSize = `${bgSizeW}px ${bgSizeH}px`;
+            tile.style.backgroundPosition = `${posX}px ${posY}px`;
+            tile.title = `#${i} (${hexIndex(i)})`;
+
+            // Click to select
+            tile.addEventListener("click", () => {
+                selectTile(i);
+            });
+
+            els.tilesGrid.appendChild(tile);
+
+            const anim = state.tileset.animations[i];
+            if (anim && anim.image && anim.image.length) {
+                const animLayer = document.createElement("div");
+                animLayer.className = "anim-layer";
+                // We’ll set size/position in the animator tick; seed basic img:
+                animLayer.style.backgroundImage = `url("${anim.image}")`;
+                tile.appendChild(animLayer);
+                tile.dataset.animated = "1";
+            }
+        }
+    }
+
+    function selectTile(index) {
+        // highlight handling
+        const prev = els.tilesGrid.querySelector(".is-selected");
+        if (prev) prev.classList.remove("is-selected");
+        const el = els.tilesGrid.querySelector(`.tile[data-index="${index}"]`);
+        if (el) el.classList.add("is-selected");
+        state.ui.selectedTileIndex = index;
+
+        // animation stuff
+        const anim = state.tileset.animations[index];
+        const checked = !!anim;
+        els.isAnimatedTile.checked = checked;
+
+        const collapse = bootstrap.Collapse.getOrCreateInstance(els.animCollapse, { toggle: false });
+        checked ? collapse.show() : collapse.hide();
+
+        els.animImage.value = anim?.image ?? "";
+        els.totalFrames.value = anim?.totalFrames ?? "";
+        els.frameWidth.value = anim?.frameWidth ?? state.tileset.tileWidth;
+        els.frameHeight.value = anim?.frameHeight ?? state.tileset.tileHeight;
+
+        // Re-render previews since the tile may animate
+        // buildTilePalette();      // so the palette tile can get animated overlay
+        renderSquarePreview();
+    }
+
+    /* --------------------------- UI wiring ---------------------------- */
+
+    async function applyTilesetFromInputs() {
+        // Sync state from inputs
+        state.tileset.imagePath = els.tilesetImage.value.trim() || state.tileset.imagePath;
+        state.tileset.tileWidth = clamp(parseInt(els.tileWidth.value, 10) || 8, 1, 1024);
+        state.tileset.tileHeight = clamp(parseInt(els.tileHeight.value, 10) || 8, 1, 1024);
+        state.tileset.columns = clamp(parseInt(els.tilesetColumns.value, 10) || 16, 1, 256);
+
+        const typed = els.tilesetImage.value.trim();
+        if (typed && !typed.startsWith("blob:")) {
+            state.tileset.originalImagePath = typed;
+        }
+
+        try {
+            const img = await loadTilesetImage(state.tileset.imagePath);
+            state.tileset.image = img;
+            state.tileset.pixelWidth = img.naturalWidth;
+            state.tileset.pixelHeight = img.naturalHeight;
+
+            buildTilePalette();
+            renderSquaresGrid();
+            renderSquarePreview();
+
+            // Auto-select first tile for convenience
+            selectTile(0);
+        } catch (e) {
+            console.warn("Failed to load tileset image:", e);
+            clearChildren(els.tilesGrid);
+        }
+    }
+
+    function wireInputs() {
+        // Rebuild palette when tileset settings change
+        els.tilesetImage.addEventListener("change", applyTilesetFromInputs);
+        els.tileWidth.addEventListener("change", applyTilesetFromInputs);
+        els.tileHeight.addEventListener("change", applyTilesetFromInputs);
+        els.tilesetColumns.addEventListener("change", applyTilesetFromInputs);
+
+        // Grid toggle
+        els.toggleGridBtn.addEventListener("click", () => {
+            state.ui.gridOn = !state.ui.gridOn;
+            els.mapView.classList.toggle("show-grid", state.ui.gridOn);
+            els.toggleGridBtn.classList.toggle("active", state.ui.gridOn);
+            // Future: if map cell size changes, update #mapView grid via CSS vars.
+        });
+    }
+
+    function tilesetStrideX() { return pitchX(); }
+    function tilesetStrideY() { return pitchY(); }
+
+    function animStrideX(anim) {
+        const gap = state.tileset.gapX ?? state.tileset.tileWidth;
+        return (anim.frameWidth || state.tileset.tileWidth) + gap;
+    }
+    function animPitchY(anim) {
+        const gap = state.tileset.gapY ?? state.tileset.tileHeight;
+        return (anim.frameHeight || state.tileset.tileHeight) + gap;
+    }
+
+    function bgSizeForScale(scale) {
+        // Full image scaled; used by backgrounds
+        return {
+            w: state.tileset.pixelWidth * scale,
+            h: state.tileset.pixelHeight * scale
+        };
+    }
+
+    function bgPosForIndex(index, scale) {
+        if (index == null) return { x: 0, y: 0, visible: false };
+        const cols = state.tileset.columns;
+        const tx = index % cols;
+        const ty = Math.floor(index / cols);
+        const strideX = tilesetStrideX() * scale;
+        const strideY = tilesetStrideY() * scale;
+        return { x: -(tx * strideX), y: -(ty * strideY), visible: true };
+    }
+
+    function renderSquaresGrid() {
+        const grid = els.squaresGrid;
+        // Clear but keep the node itself
+        while (grid.firstChild) grid.removeChild(grid.firstChild);
+
+        const { w, h } = bgSizeForScale(1); // quadrants render at 1× inside 8×8
+        state.squares.forEach((sq, i) => {
+            const cell = document.createElement("div");
+            cell.className = "square-thumb";
+            cell.dataset.index = String(i);
+            cell.title = `Square #${i}`;
+
+            // Four quadrants (tl, tr, bl, br) mapping to sq.tiles[0..3]
+            const quadNames = ["tl", "tr", "bl", "br"];
+            for (let q = 0; q < 4; q++) {
+                const quad = document.createElement("div");
+                quad.className = `quad ${quadNames[q]}`;
+                const pos = bgPosForIndex(sq.tiles[q], 1); // 1× because 8×8 CSS pixels
+                if (pos.visible) {
+                    // quad.style.backgroundImage = `url("${state.tileset.imagePath}")`;
+                    // quad.style.backgroundSize = `${w}px ${h}px`;
+                    // quad.style.backgroundPosition = `${pos.x}px ${pos.y}px`;
+                    const ti = sq.tiles[q];
+                    const anim = state.tileset.animations[ti];
+                    if (anim && anim.image) {
+                        const scale = 1; // grid is 1×
+                        const frameW = anim.frameWidth * scale;
+                        const frameH = anim.frameHeight * scale;
+                        const stride = animStrideX(anim) * scale;
+                        const height = animPitchY(anim) * scale;
+                        const frame = anim._frame || 0;
+                        const offsetX = (q % 2) ? state.tileset.tileWidth * scale : 0;
+                        const offsetY = (q >= 2) ? state.tileset.tileHeight * scale : 0;
+                        quad.style.backgroundImage = `url("${anim.image}")`;
+                        quad.style.backgroundRepeat = 'no-repeat';
+                        quad.style.backgroundSize  = `${anim.totalFrames * stride}px ${height}px`;
+                        quad.style.backgroundPosition = `${-(frame * stride) + offsetX}px ${0 + offsetY}px`;
+                    } else {
+                        quad.style.backgroundImage = `url("${state.tileset.imagePath}")`;
+                        quad.style.backgroundRepeat = 'no-repeat';
+                        quad.style.backgroundSize = `${w}px ${h}px`;
+                        quad.style.backgroundPosition = `${pos.x}px ${pos.y}px`;
+                    }
+                } else {
+                    quad.style.backgroundImage = "none";
+                }
+                cell.appendChild(quad);
+            }
+
+            // Select on click
+            cell.addEventListener("click", () => selectSquare(i));
+
+            // Highlight selected
+            if (i === state.ui.selectedSquareIndex) cell.classList.add("is-selected");
+
+            grid.appendChild(cell);
+        });
+    }
+
+    function selectSquare(index) {
+        // Update selection highlight
+        const prev = els.squaresGrid.querySelector(".is-selected");
+        if (prev) prev.classList.remove("is-selected");
+        const el = els.squaresGrid.querySelector(`.square-thumb[data-index="${index}"]`);
+        if (el) el.classList.add("is-selected");
+
+        state.ui.selectedSquareIndex = index;
+        renderSquarePreview();
+        syncSquareInputsFromState();
+    }
+
+    function renderSquarePreview() {
+        const preview = els.squarePreview;
+        // Ensure preview has four quads we can click
+        if (!preview.dataset.inited) {
+            ["tl","tr","bl","br"].forEach(name => {
+                const q = document.createElement("div");
+                q.className = `quad ${name}`;
+                // Left-click to set from selected tile
+                q.addEventListener("click", (e) => {
+                    e.preventDefault();
+                    state.ui.activeQuadrant = name;
+                    applyTileToActiveQuadrant();
+                });
+                // Right-click to clear
+                q.addEventListener("contextmenu", (e) => {
+                    e.preventDefault();
+                    state.ui.activeQuadrant = name;
+                    setActiveQuadrantTile(null);
+                });
+                preview.appendChild(q);
+            });
+            preview.dataset.inited = "1";
+        }
+
+        // Mark active quadrant
+        preview.querySelectorAll(".quad").forEach(el => el.classList.remove("is-active"));
+        const activeEl = preview.querySelector(`.quad.${state.ui.activeQuadrant}`);
+        if (activeEl) activeEl.classList.add("is-active");
+
+        // Paint backgrounds for the selected square
+        const sq = state.squares[state.ui.selectedSquareIndex];
+        const { w, h } = bgSizeForScale(1);
+        const order = ["tl","tr","bl","br"];
+        order.forEach((name, idx) => {
+            const node = preview.querySelector(`.quad.${name}`);
+            // const pos = bgPosForIndex(sq.tiles[idx], 2);
+            // if (pos.visible) {
+            //     node.style.backgroundImage = `url("${state.tileset.imagePath}")`;
+            //     node.style.backgroundSize = `${w*2}px ${h*2}px`;
+            //     node.style.backgroundPosition = `${pos.x}px ${pos.y}px`;
+            // } else {
+            //     node.style.backgroundImage = "none";
+            // }
+            const ti = sq.tiles[idx];
+            if (ti == null) { node.style.backgroundImage = "none"; return; }
+            const anim = state.tileset.animations[ti];
+            if (anim && anim.image) {
+                const scale = 2;
+                const frameW = anim.frameWidth * scale;
+                const frameH = anim.frameHeight * scale;
+                const stride = animStrideX(anim) * scale;
+                const height = animPitchY(anim) * scale;
+                const frame = anim._frame || 0;
+                const offsetX = (idx % 2) ? state.tileset.tileWidth * scale : 0;
+                const offsetY = (idx >= 2) ? state.tileset.tileHeight * scale : 0;
+                node.style.backgroundImage = `url("${anim.image}")`;
+                node.style.backgroundRepeat = "no-repeat";
+                node.style.backgroundSize = `${anim.totalFrames * stride}px ${height}px`;
+                node.style.backgroundPosition = `${-(frame * stride) + offsetX}px ${0 + offsetY}px`;
+            } else {
+                const pos = bgPosForIndex(ti, 2);
+                node.style.backgroundImage = `url("${state.tileset.imagePath}")`;
+                node.style.backgroundRepeat = "no-repeat";
+                node.style.backgroundSize = `${w * 2}px ${h * 2}px`;
+                node.style.backgroundPosition = `${pos.x}px ${pos.y}px`;
+            }
+        });
+    }
+
+    function syncSquareInputsFromState() {
+        const sq = state.squares[state.ui.selectedSquareIndex];
+        if (!sq) return;
+        els.squareSolid.checked = !!sq.collision.solid;
+        els.squareSurface.value = sq.collision.surface || "normal";
+        els.squareLedge.value = sq.collision.ledge || "";
+        els.squareTalkOver.checked = !!sq.collision.talkOver;
+        els.squareTags.value = (sq.attributes.tags || []).join(",");
+    }
+
+    function applyInputsToSquare() {
+        const sq = state.squares[state.ui.selectedSquareIndex];
+        if (!sq) return;
+        sq.collision.solid = !!els.squareSolid.checked;
+        sq.collision.surface = els.squareSurface.value || "normal";
+        sq.collision.ledge = els.squareLedge.value || null;
+        sq.collision.talkOver = !!els.squareTalkOver.checked;
+        sq.attributes.tags = (els.squareTags.value || "")
+            .split(",")
+            .map(s => s.trim())
+            .filter(Boolean);
+    }
+
+    function setActiveQuadrantTile(tileIndexOrNull) {
+        const sq = state.squares[state.ui.selectedSquareIndex];
+        const qi = { tl: 0, tr: 1, bl: 2, br: 3 }[state.ui.activeQuadrant];
+        sq.tiles[qi] = tileIndexOrNull;
+        renderSquarePreview();
+        renderSquaresGrid(); // update thumb
+        renderMap();
+    }
+
+    function applyTileToActiveQuadrant() {
+        const idx = state.ui.selectedTileIndex;
+        if (idx == null) return;
+        setActiveQuadrantTile(idx);
+    }
+
+    // Add/remove squares
+    els.btnAddSquare.addEventListener("click", () => {
+        state.squares.push({
+            tiles: [null, null, null, null],
+            collision: { solid: false, ledge: null, surface: "normal", talkOver: false },
+            attributes: { tags: [] }
+        });
+        state.ui.selectedSquareIndex = state.squares.length - 1;
+        renderSquaresGrid();
+        renderSquarePreview();
+        syncSquareInputsFromState();
+        renderMap();
+    });
+
+    els.btnRemoveSquare.addEventListener("click", () => {
+        if (state.squares.length <= 1) return; // keep at least one
+        const i = state.ui.selectedSquareIndex;
+        state.squares.splice(i, 1);
+        state.ui.selectedSquareIndex = Math.max(0, i - 1);
+        renderSquaresGrid();
+        renderSquarePreview();
+        syncSquareInputsFromState();
+        renderMap();
+    });
+
+    // animation funcitons and inputs
+    function upsertSelectedTileAnimation() {
+        const i = state.ui.selectedTileIndex;
+        if (i == null) return;
+        state.tileset.animations[i] = {
+            image: els.animImage.value.trim(),
+            totalFrames: Math.max(1, parseInt(els.totalFrames.value, 10) || 1),
+            frameWidth: Math.max(1, parseInt(els.frameWidth.value, 10) || state.tileset.tileWidth),
+            frameHeight: Math.max(1, parseInt(els.frameHeight.value, 10) || state.tileset.tileHeight),
+            _frame: 0
+        };
+    }
+
+    function removeSelectedTileAnimation() {
+        const i = state.ui.selectedTileIndex;
+        if (i == null) return;
+        delete state.tileset.animations[i];
+    }
+
+    function wireSquareInputs() {
+        els.squareSolid.addEventListener("change", applyInputsToSquare);
+        els.squareSurface.addEventListener("change", applyInputsToSquare);
+        els.squareLedge.addEventListener("change", applyInputsToSquare);
+        els.squareTalkOver.addEventListener("change", applyInputsToSquare);
+        els.squareTags.addEventListener("input", applyInputsToSquare);
+    }
+
+    function wireAnimationInputs() {
+        els.isAnimatedTile.addEventListener("change", () => {
+            const collapse = bootstrap.Collapse.getOrCreateInstance(els.animCollapse, { toggle: false });
+            if (els.isAnimatedTile.checked) {
+                collapse.show();
+                upsertSelectedTileAnimation();
+                renderMap();
+            } else {
+                collapse.hide();
+                removeSelectedTileAnimation();
+                renderMap();
+            }
+            // Repaint palette/preview to reflect change
+            buildTilePalette();
+            if (state.ui.selectedTileIndex != null) selectTile(state.ui.selectedTileIndex);
+            renderSquarePreview();
+        });
+
+        [els.animImage, els.totalFrames, els.frameWidth, els.frameHeight].forEach(input => {
+            input.addEventListener("change", () => {
+                if (!els.isAnimatedTile.checked) return;
+                upsertSelectedTileAnimation();
+                const i = state.ui.selectedTileIndex;
+                const anim = state.tileset.animations[i];
+                if (anim && anim.image && !anim.image.startsWith("blob:")) {
+                    anim.originalImagePath = anim.image;
+                }
+                buildTilePalette();
+                if (state.ui.selectedTileIndex != null) selectTile(state.ui.selectedTileIndex);
+                renderSquarePreview();
+                renderMap();
+            });
+        });
+
+        // Animate preview toggle (ON by default)
+        els.toggleAnimPreview.checked = true;
+        els.toggleAnimPreview.addEventListener("change", () => {
+            state.ui.animatePreviewOn = els.toggleAnimPreview.checked;
+        });
+    }
+
+    // ~10 FPS feels Gen1-ish. Tweak later or per-tile.
+    const ANIM_FPS = 3;
+    let _animAccum = 0;
+    let _lastTs = 0;
+    let _animTick = 0;
+
+    function tickAnimations(ts) {
+        if (!state.ui.animatePreviewOn) {
+            _lastTs = ts;
+            requestAnimationFrame(tickAnimations);
+            return;
+        }
+
+        if (!_lastTs) _lastTs = ts;
+        const dt = (ts - _lastTs) / 1000;
+        _lastTs = ts;
+        _animAccum += dt;
+
+        const step = 1 / ANIM_FPS;
+        if (_animAccum >= step) {
+            _animAccum -= step;
+            _animTick++;
+
+            // 1) Update animated tiles in the palette
+            els.tilesGrid.querySelectorAll('.tile[data-animated="1"]').forEach(tileEl => {
+                const idx = parseInt(tileEl.dataset.index, 10);
+                const anim = state.tileset.animations[idx];
+                if (!anim || !anim.image) return;
+                // anim._frame = ((anim._frame || 0) + 1) % anim.totalFrames;
+                const frame = _animTick % anim.totalFrames;
+
+                const layer = tileEl.querySelector(".anim-layer");
+                if (!layer) return;
+
+                // Compute background-size/position for current frame (assume horizontal strip)
+                // const scale = state.ui.displayScale * 1; // palette tiles display at 2× already via static bg; overlay matches visually
+                // const frameW = anim.frameWidth * scale;
+                // const frameH = anim.frameHeight * scale;
+                const scale = state.ui.displayScale;
+                const frameW = anim.frameWidth * scale;
+                const frameH = anim.frameHeight * scale;
+                const stride = animStrideX(anim) * scale;
+                const height = animPitchY(anim) * scale;
+
+                // Animate by shifting backgroundPositionX per frame
+                // const posX = -(anim._frame * frameW);
+                const posX = -(frame * stride);
+                const posY = 0;
+
+                // Use natural image size scaled by scale for background-size.
+                // We don’t know the natural size here; just scale per-frame size across frames:
+                // layer.style.backgroundSize = `${anim.totalFrames * frameW}px ${fraeH}px`;
+                layer.style.backgroundSize = `${anim.totalFrames * stride}px ${height}px`;
+                layer.style.backgroundPosition = `${posX}px ${posY}px`;
+            });
+
+            // 2) Update animated quads in the square preview
+            const sq = state.squares[state.ui.selectedSquareIndex];
+            const preview = els.squarePreview;
+            if (sq && preview) {
+                const order = ["tl", "tr", "bl", "br"];
+                order.forEach((name, qi) => {
+                    const tileIndex = sq.tiles[qi];
+                    if (tileIndex == null) return;
+                    const anim = state.tileset.animations[tileIndex];
+                    if (!anim || !anim.image) return;
+
+                    // anim._frame = ((anim._frame || 0) + 1) % anim.totalFrames;
+                    const frame = _animTick % anim.totalFrames;
+                    const node = preview.querySelector(`.quad.${name}`);
+                    if (!node) return;
+
+                    // Preview is 2× (32×32 total; 16×16 per quad)
+                    const scale = 2;
+                    // const frameW = anim.frameWidth * scale;
+                    const frameH = anim.frameHeight * scale;
+                    const stride = animStrideX(anim) * scale;
+                    const height = animPitchY(anim) * scale;
+                    // const posX = -(anim._frame * frameW);
+                    const posX = -(frame * stride);
+                    const posY = 0;
+
+                    node.style.backgroundImage = `url("${anim.image}")`;
+                    // node.style.backgroundSize = `${anim.totalFrames * frameW}px ${frameH}px`;
+                    node.style.backgroundSize = `${anim.totalFrames * stride}px ${height}px`;
+                    node.style.backgroundPosition = `${posX}px ${posY}px`;
+                });
+            }
+
+            // 3) Update animated quads in the squares grid
+            els.squaresGrid.querySelectorAll(".square-thumb").forEach(cell => {
+                const idx = parseInt(cell.dataset.index, 10);
+                const sq = state.squares[idx];
+                if (!sq) return;
+                ["tl","tr","bl","br"].forEach((name, qi) => {
+                    const tileIndex = sq.tiles[qi];
+                    if (tileIndex == null) return;
+                    const anim = state.tileset.animations[tileIndex];
+                    const node = cell.querySelector(`.quad.${name}`);
+                    if (!anim || !node) return;
+
+                    // anim._frame = ((anim._frame || 0) + 1) % anim.totalFrames;
+                    const frame = _animTick % anim.totalFrames;
+
+                    const scale = 1; // squares grid shows 8×8 per quad
+                    // const frameW = anim.frameWidth * scale;
+                    const frameH = anim.frameHeight * scale;
+                    const stride = animStrideX(anim) * scale;
+                    const height = animPitchY(anim) * scale;
+                    // const posX = -(anim._frame * frameW);
+                    const posX = -(frame * stride);
+                    const posY = 0;
+
+                    node.style.backgroundImage = `url("${anim.image}")`;
+                    // node.style.backgroundSize  = `${anim.totalFrames * frameW}px ${frameH}px`;
+                    node.style.backgroundSize = `${anim.totalFrames * stride}px ${height}px`;
+                    node.style.backgroundPosition = `${posX}px ${posY}px`;
+                });
+            });
+
+            // 4) Update animated squares on the map
+            if (state.map && state.map._cells && state.map._cells.length) {
+                // const scale = 2;
+                const scale = mapScale();
+                const W = state.map.width * state.map.height;
+                for (let i = 0; i < W; i++) {
+                    const sqIndex = state.map.ids[i];
+                    if (sqIndex == null) continue; // empty checker
+                    // Quick check: if none of the 4 tiles are animated, skip
+                    const sq = state.squares[sqIndex];
+                    const anyAnim = sq && sq.tiles.some(ti => ti!=null && state.tileset.animations[ti]);
+                    if (!anyAnim) continue;
+
+                    const el = state.map._cells[i];
+                    const layers = buildSquareLayers(sqIndex, scale);
+                    el.style.backgroundImage    = layers.img;
+                    el.style.backgroundPosition = layers.pos;
+                    // el.style.backgroundSize     = `${layers.atlasW}px ${layers.atlasH}px`;
+                    el.style.backgroundSize     = layers.size;
+                }
+            }
+
+        }
+
+        requestAnimationFrame(tickAnimations);
+    }
+
+    // tool buttons
+    const toolButtons = {
+        draw: document.getElementById("toolDraw"),
+        rect: document.getElementById("toolRect"),
+        fill: document.getElementById("toolFill"),
+        eyedropper: document.getElementById("toolEyedropper")
+    };
+    state.ui.activeTool = "draw";
+
+    function setActiveTool(name){
+        state.ui.activeTool = name;
+        Object.entries(toolButtons).forEach(([key, btn])=>{
+            btn.classList.toggle("active", key === name);
+        });
+    }
+
+    toolButtons.draw.addEventListener("click", ()=> setActiveTool("draw"));
+    toolButtons.rect.addEventListener("click", ()=> setActiveTool("rect"));
+    toolButtons.fill.addEventListener("click", ()=> setActiveTool("fill"));
+    toolButtons.eyedropper.addEventListener("click", ()=> setActiveTool("eyedropper"));
+
+    // --- Tools / Painting ---
+    let dragActive = false;
+    let dragButton = 0; // 0=left, 2=right
+    let dragStartIndex = -1;
+    let lastPaintIndex = -1;
+
+    // prevent browser context menu so RMB can erase
+    els.mapView.addEventListener("contextmenu", e => e.preventDefault());
+    
+    // Prevent middle click acting as mouse click, prepping for panning
+    els.mapView.addEventListener("pointerdown", e => {
+        if (e.button === 1) {
+            e.preventDefault();
+            startPan(e);
+            return;
+        }
+    });
+    window.addEventListener('pointermove', doPan, { passive: true });
+    window.addEventListener('pointerup', endPan, { passive: true });
+
+        let panActive = false;
+        let panStartX = 0, panStartY = 0;
+        let panScrollLeft = 0, panScrollTop = 0;
+
+        function startPan(e) {
+            panActive = true;
+            els.mapView.classList.add("is-panning");
+            panStartX = e.clientX;
+            panStartY = e.clientY;
+            panScrollLeft = els.mapView.scrollLeft;
+            panScrollTop  = els.mapView.scrollTop;
+            e.preventDefault();
+        }
+
+        function doPan(e) {
+            if (!panActive) return;
+            const dx = e.clientX - panStartX;
+            const dy = e.clientY - panStartY;
+            els.mapView.scrollLeft = panScrollLeft - dx;
+            els.mapView.scrollTop  = panScrollTop  - dy;
+        }
+
+        function endPan() {
+            if (!panActive) return;
+            panActive = false;
+            els.mapView.classList.remove("is-panning");
+        }
+
+    function currentPaintSquare(button){
+        // LMB = place selected square; RMB = erase (null)
+        if (button === 2) return null;
+        return state.squares[state.ui.selectedSquareIndex] ? state.ui.selectedSquareIndex : null;
+    }
+
+    function paintAtIndex(i, button){
+        if (i < 0) return;
+        if (state.ui.activeTool === "eyedropper") {
+            const picked = state.map.ids[i];
+            if (picked != null) {
+                state.ui.selectedSquareIndex = picked;
+                selectSquare(picked); // updates preview + inputs
+            }
+            return;
+        }
+
+        if (state.ui.activeTool === "draw") {
+            if (i === lastPaintIndex) return; // avoid rewrite spam
+            setCellByIndex(i, currentPaintSquare(button));
+            lastPaintIndex = i;
+            return;
+        }
+
+        if (state.ui.activeTool === "fill") {
+            floodFill(i, currentPaintSquare(button));
+            return;
+        }
+
+        // Rectangle handled on mouseup (so we can compute the box)
+    }
+
+    function clearPreviews() {
+        state.map._cells.forEach(c => c.classList.remove("is-preview"));
+    }
+
+    function showRectPreview(i1, i2){
+        clearPreviews();
+        if (i1 < 0 || i2 < 0) return;
+        const a = indexToXY(i1);
+        const b = indexToXY(i2);
+        const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
+        const y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+        for (let y = y0; y <= y1; y++){
+            for (let x = x0; x <= x1; x++){
+                const idx = xyToIndex(x, y);
+                if (idx >= 0) state.map._cells[idx].classList.add("is-preview");
+            }
+        }
+    }
+
+    function applyRect(i1, i2, button){
+        if (i1 < 0 || i2 < 0) return;
+        const a = indexToXY(i1);
+        const b = indexToXY(i2);
+        const x0 = Math.min(a.x, b.x), x1 = Math.max(a.x, b.x);
+        const y0 = Math.min(a.y, b.y), y1 = Math.max(a.y, b.y);
+        const val = currentPaintSquare(button);
+        for (let y = y0; y <= y1; y++){
+            for (let x = x0; x <= x1; x++){
+                const idx = xyToIndex(x, y);
+                if (idx >= 0) setCellByIndex(idx, val);
+            }
+        }
+    }
+
+    // Classic flood fill on square ids
+    function floodFill(startIndex, newVal){
+        const w = state.map.width, h = state.map.height;
+        const ids = state.map.ids;
+        const targetVal = ids[startIndex]; // can be null
+        if (targetVal === newVal) return;
+
+        const stack = [startIndex];
+        const seen = new Uint8Array(ids.length);
+
+        while (stack.length){
+            const i = stack.pop();
+            if (i < 0 || seen[i]) continue;
+            if (ids[i] !== targetVal) continue;
+            seen[i] = 1;
+            setCellByIndex(i, newVal);
+
+            const {x, y} = indexToXY(i);
+            if (x > 0)           stack.push(i - 1);
+            if (x < w - 1)       stack.push(i + 1);
+            if (y > 0)           stack.push(i - w);
+            if (y < h - 1)       stack.push(i + w);
+        }
+    }
+
+    // Map mouse interactions
+    els.mapView.addEventListener("mousedown", (e) => {
+        const idx = getCellIndexFromEventTarget(e.target);
+        if (idx < 0) return;
+        dragActive = true;
+        dragButton = (e.button === 2) ? 2 : 0; // treat anything else as LMB
+        dragStartIndex = idx;
+        lastPaintIndex = -1;
+
+        if (state.ui.activeTool === "draw" || state.ui.activeTool === "fill" || state.ui.activeTool === "eyedropper") {
+            paintAtIndex(idx, dragButton);
+        } else if (state.ui.activeTool === "rect") {
+            showRectPreview(dragStartIndex, idx);
+        }
+    });
+
+    els.mapView.addEventListener("mousemove", (e) => {
+        if (!dragActive) return;
+        const idx = getCellIndexFromEventTarget(e.target);
+        if (idx < 0) return;
+
+        if (state.ui.activeTool === "draw") {
+            paintAtIndex(idx, dragButton);
+        } else if (state.ui.activeTool === "rect") {
+            showRectPreview(dragStartIndex, idx);
+        }
+    });
+
+    function endDrag(e){
+        if (!dragActive) return;
+        const idx = getCellIndexFromEventTarget(e.target);
+        if (state.ui.activeTool === "rect") {
+            applyRect(dragStartIndex, idx, dragButton);
+            clearPreviews();
+        }
+        dragActive = false;
+        lastPaintIndex = -1;
+    }
+    els.mapView.addEventListener("mouseup", endDrag);
+    els.mapView.addEventListener("mouseleave", endDrag);
+
+
+    // modded menu w/nested submenus
+    function wireSubmenus() {
+        document.querySelectorAll('.dropdown-submenu .dropdown-toggle').forEach(toggle => {
+            toggle.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const parentMenu = e.currentTarget.closest('.dropdown-menu');
+                const sub = e.currentTarget.nextElementSibling;
+                // Close any open siblings
+                parentMenu.querySelectorAll('.dropdown-menu.show').forEach(m => {
+                    if (m !== sub) m.classList.remove('show');
+                });
+                sub.classList.toggle('show');
+            });
+        });
+
+        // Keep parent open when interacting inside
+        document.querySelectorAll('.dropdown-menu').forEach(menu => {
+            menu.addEventListener('click', e => e.stopPropagation());
+        });
+
+        // Close submenus when parent closes
+        document.querySelectorAll('.dropdown').forEach(drop => {
+            drop.addEventListener('hide.bs.dropdown', () => {
+                drop.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+            });
+        });
+    }
+
+    function wireFilePickers() {
+        // Tileset picker
+        els.btnPickTileset.addEventListener("click", () => els.pickTilesetFile.click());
+        els.pickTilesetFile.addEventListener("change", async () => {
+            const file = els.pickTilesetFile.files?.[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            els.tilesetImage.value = url;                // show object URL
+            state.tileset.imagePath = url;               // use object URL
+            state.tileset.originalImagePath = file.name; // grab url for original file name
+            await applyTilesetFromInputs();              // load & rebuild
+            // (optional) keep a reference if you want to revoke later
+            // URL.revokeObjectURL(url); // do this only when you replace/close
+        });
+
+        // Animation picker
+        els.btnPickAnim.addEventListener("click", () => els.pickAnimFile.click());
+        els.pickAnimFile.addEventListener("change", () => {
+            const file = els.pickAnimFile.files?.[0];
+            if (!file) return;
+            const url = URL.createObjectURL(file);
+            els.animImage.value = url;
+            if (els.isAnimatedTile.checked) {
+            upsertSelectedTileAnimation();  // writes anim.image = value
+            const i = state.ui.selectedTileIndex;
+            if (i != null && state.tileset.animations[i]) {
+                state.tileset.originalAnimationPath = file.name; // grab url for original file name
+            }
+            buildTilePalette();
+            renderSquarePreview();
+            renderMap();
+            }
+            // URL.revokeObjectURL(url); // later, when replacing/closing
+        });
+    }
+
+    function pitchX() { return state.tileset.tileWidth  + state.tileset.gapX; }
+    function pitchY() { return state.tileset.tileHeight + state.tileset.gapY; }
+
+    // Animation pitch (frames are also laid out with gutters)
+    function animStrideX(anim) {
+        const gap = state.tileset.gapX ?? state.tileset.tileWidth;
+        return (anim.frameWidth || state.tileset.tileWidth) + gap;
+    }
+    function animPitchY(anim) {
+        const gap = state.tileset.gapY ?? state.tileset.tileHeight;
+        return (anim.frameHeight || state.tileset.tileHeight) + gap;
+    }
+
+    // Base background-position for a static tile index at a given scale
+    function bgPosForIndex(index, scale) {
+        if (index == null) return { x: 0, y: 0, visible: false };
+        const cols = state.tileset.columns;
+        const tx = index % cols;
+        const ty = Math.floor(index / cols);
+        return {
+            x: -(tx * pitchX() * scale),
+            y: -(ty * pitchY() * scale),
+            visible: true
+        };
+    }
+
+    // Build CSS background-image / background-position for a square id (4 layers)
+    // scale=2 for map cells (16×16), =1 for thumbnails
+    function buildSquareLayers(squareIndex, scale) {
+        const sq = state.squares[squareIndex];
+        if (!sq) return { img: "", pos: "" };
+
+        const names = [0,1,2,3]; // tl,tr,bl,br
+        const imgs = new Array(4);
+        const poss = new Array(4);
+        const sizes = new Array(4);
+
+        const { w, h } = { w: state.tileset.pixelWidth * scale, h: state.tileset.pixelHeight * scale };
+        const T = state.tileset.tileWidth * scale;
+
+        names.forEach((qi) => {
+            const ti = sq.tiles[qi];
+            const isRight = (qi % 2) === 1;
+            const isBottom = qi >= 2;
+            const offsetX = isRight ? T : 0;
+            const offsetY = isBottom ? T : 0;
+
+            const anim = ti != null ? state.tileset.animations[ti] : null;
+            if (anim && anim.image) {
+                const stride = animStrideX(anim) * scale;
+                const height = animPitchY(anim) * scale;
+                const frame = _animTick % anim.totalFrames;
+                const posX = -(frame * stride) + offsetX;
+                const posY = 0 + offsetY;
+                imgs[qi] = `url("${anim.image}")`;
+                poss[qi] = `${posX}px ${posY}px`;
+                sizes[qi] = `${anim.totalFrames * stride}px ${height}px`;
+                // Size is set on the element (shared for all four layers) where we can,
+                // but for mixed static/anim we set per-layer by staying with positions only.
+                // The browser uses background-size per element, not per layer; so we keep
+                // layer sizes consistent by ensuring static uses the atlas size below.
+            } else if (ti != null) {
+                const pos = bgPosForIndex(ti, scale);
+                imgs[qi] = `url("${state.tileset.imagePath}")`;
+                poss[qi] = `${pos.x + offsetX}px ${pos.y + offsetY}px`;
+                sizes[qi] = `${w}px ${h}px`;
+            } else {
+                imgs[qi] = "none";
+                poss[qi] = "0 0";
+                sizes[qi] = "auto";
+            }
+        });
+
+        // return { img: imgs.join(", "), pos: poss.join(", "), atlasW: state.tileset.pixelWidth * scale, atlasH: state.tileset.pixelHeight * scale };
+        return {
+            img: imgs.join(", "),
+            pos: poss.join(", "),
+            size: sizes.join(", ")
+        };
+    }
+
+    function mountMapCanvas(useExistingIds = false) {
+        if (!state.map._canvas) {
+            state.map._canvas = document.createElement("div");
+            state.map._canvas.id = "mapCanvas";
+            els.mapView.appendChild(state.map._canvas);
+        }
+        // Size from sidebar inputs
+        const w = clamp(parseInt(document.getElementById("mapWidth").value,10) || 20, 1, 1024);
+        const h = clamp(parseInt(document.getElementById("mapHeight").value,10) || 18, 1, 1024);
+
+        state.map.width = w;
+        state.map.height = h;
+        if (!useExistingIds) state.map.ids = new Array(w * h).fill(null); // start all empty
+        state.map._cells = [];
+
+        const c = state.map._canvas;
+        c.style.gridTemplateColumns = `repeat(${w}, var(--cell-size))`;
+        c.style.gridTemplateRows    = `repeat(${h}, var(--cell-size))`;
+        c.innerHTML = "";
+
+        const frag = document.createDocumentFragment();
+        for (let i = 0; i < w*h; i++) {
+            const d = document.createElement("div");
+            d.className = "map-cell is-empty";
+            d.dataset.index = String(i);
+            // (future) add listeners for paint/remove here
+            frag.appendChild(d);
+            state.map._cells.push(d);
+        }
+        c.appendChild(frag);
+
+        let overlay = c.querySelector("#gridOverlay");
+        if (!overlay) {
+            overlay = document.createElement("div");
+            overlay.id = "gridOverlay";
+            c.appendChild(overlay);
+        }
+    }
+
+    // Paint (static pass); used after (re)mount and when tileset/squares change
+    function renderMap() {
+        if (!state.map._cells || state.map._cells.length === 0) return;
+        // const scale = 2;
+        const scale = mapScale();
+        const w = state.map.width, h = state.map.height;
+        for (let i = 0; i < w*h; i++) {
+            const sqIndex = state.map.ids[i];
+            const el = state.map._cells[i];
+            if (sqIndex == null) {
+                el.classList.add("is-empty");
+                // Clear layered images for empty cells
+                el.style.backgroundImage = "";
+                el.style.backgroundPosition = "";
+                el.style.backgroundSize = "";
+                continue;
+            }
+            el.classList.remove("is-empty");
+            const layers = buildSquareLayers(sqIndex, scale);
+            el.style.backgroundImage    = layers.img;
+            el.style.backgroundPosition = layers.pos;
+            // el.style.backgroundSize     = `${layers.atlasW}px ${layers.atlasH}px`;
+            el.style.backgroundSize     = layers.size;
+        }
+    }
+
+    document.getElementById("btnApplyResize").addEventListener("click", () => {
+        // (future) honor anchor/voidSquare; for now recreate and keep ids empty
+        mountMapCanvas();
+        renderMap();
+    });
+
+    function resizeMapToInputs() {
+        const newW = clamp(parseInt(document.getElementById("mapWidth").value,10) || 20, 1, 1024);
+        const newH = clamp(parseInt(document.getElementById("mapHeight").value,10) || 18, 1, 1024);
+        const anchor = document.getElementById("resizeAnchor").value; // 'tl'|'center'|'br'
+
+        const oldW = state.map.width, oldH = state.map.height;
+        const oldIds = state.map.ids;
+
+        const copyW = Math.min(oldW, newW);
+        const copyH = Math.min(oldH, newH);
+
+        function starts(anchor, oldSize, newSize, copySize) {
+            if (anchor === "tl") return { oldStart: 0,                  newStart: 0 };
+            if (anchor === "br") return { oldStart: oldSize - copySize, newStart: newSize - copySize };
+            /* center */
+            const oldStart = Math.floor((oldSize - copySize)/2);
+            const newStart = Math.floor((newSize - copySize)/2);
+            return { oldStart, newStart };
+        }
+
+        const sx = starts(anchor, oldW, newW, copyW);
+        const sy = starts(anchor, oldH, newH, copyH);
+
+        const newIds = new Array(newW * newH).fill(null); // keep editor “empty” checker for new space
+
+        for (let y = 0; y < copyH; y++) {
+            for (let x = 0; x < copyW; x++) {
+                const src = (y + sy.oldStart) * oldW + (x + sx.oldStart);
+                const dst = (y + sy.newStart) * newW + (x + sx.newStart);
+                newIds[dst] = oldIds[src];
+            }
+        }
+
+        state.map.width = newW;
+        state.map.height = newH;
+        state.map.ids = newIds;
+
+        // Rebuild DOM grid to new size but keep ids we just computed
+        mountMapCanvas(true);
+        renderMap();
+    }
+
+    document.getElementById("btnApplyResize").addEventListener("click", resizeMapToInputs);
+
+    // add to state.ui
+    // mapZoom is 1..8 (x1..x8)
+    state.ui.mapZoom = 1;
+
+    // use this scale for MAP ONLY (palette stays 2x as-is)
+    function mapScale() {
+        // return state.ui.displayScale * state.ui.mapZoom; // 2 * zoom
+        return state.ui.mapZoom;
+    }
+
+    function setMapZoom(level){
+        level = clamp(level, 1, 8);
+        state.ui.mapZoom = level;
+        const px = 16 * level; // one map cell = 16px * zoom
+        // apply for both the canvas and the overlay
+        state.map._canvas?.style.setProperty('--cell-size', px + 'px');
+        els.mapView.style.setProperty('--cell-size', px + 'px');
+        updateZoomButtons();
+        renderMap(); // redraw backgrounds with new scale
+    }
+
+    function updateZoomButtons(){
+        const z = state.ui.mapZoom;
+        const btnOut   = document.getElementById("btnZoomOut");
+        const btnIn    = document.getElementById("btnZoomIn");
+        const btnReset = document.getElementById("btnZoomReset");
+        btnOut.disabled = (z <= 1);
+        btnIn.disabled  = (z >= 8);
+        btnReset.classList.toggle("active", z !== 1); // highlight when not default
+    }
+
+    document.getElementById("btnZoomIn").addEventListener("click", () => setMapZoom(state.ui.mapZoom + 1));
+    document.getElementById("btnZoomOut").addEventListener("click", () => setMapZoom(state.ui.mapZoom - 1));
+    document.getElementById("btnZoomReset").addEventListener("click", () => setMapZoom(1));
+
+    document.getElementById("btnSaveJson").addEventListener("click", () => {
+        const model = buildExportModel();
+        const fname = (model.mapName || "map") + ".json";
+        downloadText(fname, toPrettyJSONCustom(model), "application/json");
+    });
+
+    document.getElementById("btnSaveJs").addEventListener("click", () => {
+        const model = buildExportModel();
+        const fname = (model.mapName || "map") + ".js";
+        downloadText(fname, toJSModuleCustom(model), "application/javascript");
+    });
+
+    document.getElementById("btnValidate").addEventListener("click", () => {
+        const model = buildExportModel();
+        const errs = [];
+
+        if (model.map.width * model.map.height !== model.map.ids.length) {
+            errs.push("Map ids length does not match width×height.");
+        }
+        if (model.tileset.tileWidth !== 8 || model.tileset.tileHeight !== 8) {
+            // not an error if you allow other sizes; just an example rule
+        }
+        // Ensure animations reference existing tiles (optional)
+        for (const key of Object.keys(model.tileset.animations)) {
+            // ok if anything, but you can check that the hex converts to a number >=0
+            if (!/^0x[0-9A-F]+$/.test(key)) errs.push(`Bad animation key: ${key}`);
+        }
+
+        alert(errs.length ? ("Validation errors:\n\n" + errs.join("\n")) : "Looks good!");
+    });
+
+    function setCellByIndex(i, sqIndex) {
+        state.map.ids[i] = sqIndex;
+        const el = state.map._cells[i];
+        if (sqIndex == null) {
+            el.classList.add("is-empty");
+            el.style.backgroundImage = "";
+            el.style.backgroundPosition = "";
+            el.style.backgroundSize = "";
+            return;
+        }
+        el.classList.remove("is-empty");
+        const layers = buildSquareLayers(sqIndex, mapScale());
+        el.style.backgroundImage    = layers.img;
+        el.style.backgroundPosition = layers.pos;
+        // el.style.backgroundSize     = `${layers.atlasW}px ${layers.atlasH}px`;
+        el.style.backgroundSize     = layers.size;
+    }
+
+    function indexToXY(i) {
+        const w = state.map.width;
+        return { x: i % w, y: Math.floor(i / w) };
+    }
+    function xyToIndex(x, y) {
+        const w = state.map.width, h = state.map.height;
+        if (x < 0 || y < 0 || x >= w || y >= h) return -1;
+        return y * w + x;
+    }
+
+    function getCellIndexFromEventTarget(target){
+        const cell = target.closest(".map-cell");
+        return cell ? parseInt(cell.dataset.index, 10) : -1;
+    }
+
+    function toHexStr(i) {
+        return "0x" + (i >>> 0).toString(16).toUpperCase().padStart(2, "0");
+    }
+
+    // Make a safe JS identifier from map name for var <name> = ...
+    function toSafeVarName(name) {
+        const n = (name || "map").replace(/\s+/g, "_").replace(/[^A-Za-z0-9_]/g, "_");
+        return /^[A-Za-z_]/.test(n) ? n : "_" + n;
+    }
+
+    function downloadText(filename, text, mime="application/json") {
+        const blob = new Blob([text], { type: mime + ";charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+    }
+
+    // ---------- Pretty-print helpers for custom formatting ----------
+
+    function sp(n){ return " ".repeat(n); }
+
+    // tiles on ONE line: [ "0x..", "0x..", "0x..", "0x.." ]
+    function formatTilesArray(hex4, indent) {
+        const body = hex4.map(s => `"${s}"`).join(", ");
+        return `${sp(indent)}"tiles": [ ${body} ]`;
+    }
+
+    // formats the "squares" array with per-square tiles on one line
+    function formatSquares(squares, baseIndent) {
+        const indent1 = baseIndent + 4; // inside the array
+        const indent2 = indent1 + 4;    // inside each object
+
+        const items = squares.map(sq => {
+            const tilesLine  = formatTilesArray(sq.tiles, indent2);
+            const collision  = JSON.stringify(sq.collision, null, 4)
+            .split("\n").map((ln,i)=> (i===0? sp(indent2)+`"collision": ${ln}` : sp(indent2)+ln)).join("\n");
+            const attributes = JSON.stringify(sq.attributes, null, 4)
+            .split("\n").map((ln,i)=> (i===0? sp(indent2)+`"attributes": ${ln}`: sp(indent2)+ln)).join("\n");
+
+            return [
+                sp(indent1) + "{",
+                tilesLine + ",",
+                collision + ",",
+                attributes,
+                sp(indent1) + "}"
+            ].join("\n");
+        });
+
+        return [
+            sp(baseIndent) + `"squares": [`,
+            items.join(",\n"),
+            sp(baseIndent) + `]`
+        ].join("\n");
+    }
+
+    // formats map.ids in visual rows (width values per row)
+    function formatMapIds(ids, width, baseIndent) {
+        const indentRows = baseIndent + 8; // nice alignment under the '['
+        const rows = [];
+        for (let y = 0; y < Math.ceil(ids.length / width); y++) {
+            const start = y * width;
+            rows.push(sp(indentRows) + ids.slice(start, start + width).join(", "));
+        }
+        return [
+            sp(baseIndent + 4) + `"ids": [`,
+            rows.join(",\n"),
+            sp(baseIndent + 4) + `]`
+        ].join("\n");
+    }
+
+    // builds a full JSON string with custom squares + ids formatting (order preserved)
+    function toPrettyJSONCustom(model) {
+        const indent0 = 0, indent1 = 4;
+
+        // tileset (retain your key order)
+        const tilesetOrdered = {
+            image: model.tileset.image,
+            tileWidth: model.tileset.tileWidth,
+            tileHeight: model.tileset.tileHeight,
+            columns: model.tileset.columns,
+            animations: model.tileset.animations
+        };
+        const tilesetStr = JSON.stringify(tilesetOrdered, null, 4);
+
+        // objects / encounters (plain JSON)
+        const objectsStr = JSON.stringify(model.objects, null, 4)
+            .split("\n").map((ln,i)=> (i===0? sp(indent0)+`"objects": ${ln}` : ln)).join("\n");
+        const encountersStr = JSON.stringify(model.encounters, null, 4)
+            .split("\n").map((ln,i)=> (i===0? sp(indent0)+`"encounters": ${ln}` : ln)).join("\n");
+
+        // stitch in order
+        const lines = [];
+        lines.push("{");
+        lines.push(sp(indent1) + `"mapName": ${JSON.stringify(model.mapName)},`);
+        lines.push(sp(indent1) + `"schema": ${model.schema},`);
+        lines.push("");
+        lines.push(sp(indent1) + `"bgm": ${JSON.stringify(model.bgm)},`);
+        lines.push("");
+        lines.push(sp(indent1) + `"tileset": ` + tilesetStr.replace(/\n/g, "\n")); // keep its own indentation
+        lines.push(",");
+        lines.push("");
+        lines.push(formatSquares(model.squares, indent1));
+        lines.push(",");
+        lines.push("");
+        // map section
+        lines.push(`"map": {`);
+        lines.push(sp(indent1) + `"width": ${model.map.width},`);
+        lines.push(sp(indent1) + `"height": ${model.map.height},`);
+        lines.push("");
+        lines.push(formatMapIds(model.map.ids, model.map.width, indent0));
+        lines.push(",");
+        lines.push("");
+        lines.push(sp(indent1) + `"voidSquare": ${model.map.voidSquare},`);
+        lines.push("");
+        lines.push(sp(indent1) + `"connections": ` + JSON.stringify(model.map.connections, null, 4).replace(/\n/g, "\n"));
+        lines.push("},");
+        lines.push("");
+        lines.push(objectsStr + ",");
+        lines.push("");
+        lines.push(encountersStr);
+        lines.push("}");
+        return lines.join("\n");
+    }
+
+    // JS wrapper using the custom pretty JSON
+    function toJSModuleCustom(model) {
+        const varName = toSafeVarName(model.mapName);
+        return `var ${varName} = ${toPrettyJSONCustom(model)};\n`;
+    }
+
+    // Turn state -> export model matching your template (ordered)
+    function buildExportModel() {
+        // --- header fields
+        const mapName = document.getElementById("mapNameField").value || "ExampleMap";
+        const schema  = parseInt(document.getElementById("schemaVersion").value, 10) || 1;
+        const bgm     = document.getElementById("mapBGM").value || "";
+
+        // --- tileset
+        const tileset = {
+            image: state.tileset.originalImagePath || state.tileset.imagePath || "",
+            tileWidth: state.tileset.tileWidth,
+            tileHeight: state.tileset.tileHeight,
+            columns: state.tileset.columns,
+            animations: {}
+        };
+        // animations keyed by hex tile index
+        for (const [k, anim] of Object.entries(state.tileset.animations)) {
+            if (!anim) continue;
+            const key = toHexStr(parseInt(k, 10));
+            tileset.animations[key] = {
+                image: anim.originalImagePath || anim.image || "",
+                totalFrames: anim.totalFrames || 1,
+                frameWidth: anim.frameWidth || state.tileset.tileWidth,
+                frameHeight: anim.frameHeight || state.tileset.tileHeight
+            };
+        }
+
+        // --- squares (tiles as hex strings)
+        const squares = state.squares.map(sq => ({
+            tiles: sq.tiles.map(ti => ti == null ? "0x00" : toHexStr(ti)),
+            collision: {
+                solid: !!sq.collision?.solid,
+                ledge: sq.collision?.ledge ?? null,
+                surface: sq.collision?.surface ?? "normal",
+                talkOver: !!sq.collision?.talkOver
+            },
+            attributes: {
+                tags: Array.isArray(sq.attributes?.tags) ? sq.attributes.tags.slice() : []
+            }
+        }));
+
+        // --- map body + connections (from sidebar)
+        const width  = state.map.width;
+        const height = state.map.height;
+
+        const mapSection = {
+            width,
+            height,
+            ids: state.map.ids.map(v => (v == null ? 0 : v >>> 0)), // numbers
+            voidSquare: parseInt(document.getElementById("voidSquare").value, 10) || 0,
+            connections: {
+            north: (document.getElementById("connNorthId").value || "").trim()
+                ? { mapId: document.getElementById("connNorthId").value.trim(),
+                    offset: parseInt(document.getElementById("connNorthOffset").value,10) || 0 }
+                : null,
+            east:  (document.getElementById("connEastId").value || "").trim()
+                ? { mapId: document.getElementById("connEastId").value.trim(),
+                    offset: parseInt(document.getElementById("connEastOffset").value,10) || 0 }
+                : null,
+            south: (document.getElementById("connSouthId").value || "").trim()
+                ? { mapId: document.getElementById("connSouthId").value.trim(),
+                    offset: parseInt(document.getElementById("connSouthOffset").value,10) || 0 }
+                : null,
+            west:  (document.getElementById("connWestId").value || "").trim()
+                ? { mapId: document.getElementById("connWestId").value.trim(),
+                    offset: parseInt(document.getElementById("connWestOffset").value,10) || 0 }
+                : null
+            }
+        };
+
+        // --- objects (use your future object list; for now if not implemented, empty)
+        // If you later maintain a state.objects[], serialize it here.
+        const objects = []; // placeholder until your object editor populates this
+
+        // --- encounters skeleton (placeholders you can see in files)
+        const encounters = {
+            land:   [],
+            water:  [],
+            rodOld: [],
+            rodGood: [],
+            rodSuper: [],
+            zones:  [] // { region:{tl:[x,y],br:[x,y]}, land:[], water:[], ... }
+        };
+
+        // Ordered object exactly like your example
+        return {
+            mapName,
+            schema,
+            bgm,
+            tileset,
+            squares,
+            map: mapSection,
+            objects,
+            encounters
+        };
+    }
+
+    // Pretty JSON with 4 spaces to match your sample
+    function toPrettyJSON(model) {
+        return JSON.stringify(model, null, 4);
+    }
+
+    // JS wrapper: var <mapName> = { ... };
+        function toJSModule(model) {
+        const varName = toSafeVarName(model.mapName);
+        return `var ${varName} = ${toPrettyJSON(model)};\n`;
+    }
+
+    /* ------------------------------ Init ------------------------------ */
+
+    async function init() {
+        // Seed inputs with state (in case the DOM defaults differ)
+        els.tilesetImage.value = state.tileset.imagePath;
+        els.tileWidth.value = String(state.tileset.tileWidth);
+        els.tileHeight.value = String(state.tileset.tileHeight);
+        els.tilesetColumns.value = String(state.tileset.columns);
+
+        wireInputs();
+        wireAnimationInputs();
+        wireSubmenus();
+        wireSquareInputs();
+        wireFilePickers();
+
+        mountMapCanvas();
+        setMapZoom(1);
+        await applyTilesetFromInputs();
+        renderMap();
+        selectSquare(state.ui.selectedSquareIndex);
+        syncSquareInputsFromState();
+        requestAnimationFrame(tickAnimations);
+        setActiveTool("draw");
+    }
+
+    // Kick off after DOM ready (jQuery is present per your includes)
+    $(init);
+
+})();
+</script>
+</body>
+</html>

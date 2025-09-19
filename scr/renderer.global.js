@@ -22,7 +22,7 @@
         tilesPerRow: 16,
         tileSize: 16,
         tileSheet: 'tileset.png',
-        spritesheet: 'staticSprites.png',
+        spritesheet: 'res/spr/staticSprites.png',  // path/to/file/ from root of 
  
         // runtime buffers
         _tileEls: [],
@@ -249,9 +249,13 @@
     function setSprite(el, frameIndex, x, y){
         el.style.transform = `translate(${x}px, ${y}px)`;
         const fw = R.tileSize, perRow = R.tilesPerRow;
+        console.debug(`frameIndex: ${frameIndex}`)
         const bx = -((frameIndex % perRow) * fw);
+        console.debug(`Index: ${bx}`)
         const by = -(Math.floor(frameIndex / perRow) * fw);
+        console.debug(`row: ${by}`)
         el.style.backgroundPosition = `${bx}px ${by}px`;
+        console.debug(`BG POS: ${bx}px ${by}px`)
         el.style.zIndex = String(100 + Math.floor(y / 16));
     }
     function updateSprite(id, frameIndex, x, y){
