@@ -30,14 +30,30 @@ I'm not insane.  *You're* insane.
     - Sprites utilize sprite sheets, one sheet per specific object and state (item balls, player sprite, flying sprite, NPCs, all separate files)
     - Animation system utilizes traditional logic (one side, up/down, flip sprites for additional 'frames' or alternate facing), a more modernized approach similar to RPG Maker, and more.
     - Player sprites (and most all others) are drawn with a -4px offset just like in the original game
+    - Call sprites on-the-fly (i.e. the shadow that appears underneath when ledge hopping)
 
 ## Known Bugs:
 - This is written in JavaScript, one big bug of a programming langauge.  Won't be fixed.
-- Player doesn't animate when 'bumping' against a solid map square.  When stepping into the void, only half of the animation works (not that the player should be in a situation they can regularly exit the void)
+- In the map editor, if no animated tiles are defined, a 0-indexed animated tile entry is still generated.
+- In the map editor, music preview doesn't work.
+- In the map editor, object placement functionality isn't implemented yet.
+- In the map editor, blocks aren't able to be created; the map currently only works with squaress (the 4x4 tile squares, not the 8x8 tile blocks).
+- In the map editor, resizing the map will clear everything without warning.
+- In the map editor, encounter tables cannot yet be defined (just placeholder and html scaffolding).
+- In the map editor, you can't yet open files.
+- In the map editor, file paths do not yet get loaded properly, and require manual editing of the file afterwards to properly direct the file path.
 
 ## Changelog:
+### v0.0.14
+- Fixed a bug where the player didn't animate when walking correctly.
+- Fixed a bug where the player wouldn't animate when bumping against a solid object or square.
+- Addded the ability to save and create animated tiles to the map editor.
+- Saving maps are possible.
+
 ### v0.0.10
 - Added initial collision logic for player.
+- Added ledge hopping.
+- Created the map editor
 
 ### v0.0.8
 - Fixed a bug where background tiles (possibly other visual assets as well) would sometimes appear with interpolation despite it being disabled.  Conflicting CSS rules appear to have been causing a race condition that sometimes triggered it.  Should be resolved.

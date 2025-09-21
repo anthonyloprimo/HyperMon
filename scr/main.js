@@ -12,7 +12,7 @@ MapLoader.loadMap("res/bg/maps/", "mapTemplate").then(({ map }) => {
     const p = Sprites.spawn({
         id: 'player',
         sheet: 'PLAYER_MODE1',
-        x: 32, y: 32,
+        x: 64, y: 64,
         facing: 'down'
     });
     Camera.setTarget(p);

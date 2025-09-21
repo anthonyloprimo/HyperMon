@@ -428,9 +428,8 @@
         const duration = DIST / SPEED_PX_PER_SEC; // seconds
         const startX = player.x, startY = player.y;
 
-        // Shadow: appears 8px below the player's ground position, removed on land
-        const SHADOW_FRAME = 9;
-        Renderer.addSprite("player_shadow", SHADOW_FRAME, startX, startY + 8);
+        // Shadow: appears 4px below the player's ground position, removed on land
+        Renderer.addSprite("player_shadow", 9, startX, startY + 4);
 
         player.motion = {
             kind: "HOP",
@@ -497,8 +496,8 @@
             applyFrame(player, next, doFlip);
         }
 
-        // Shadow sticks to ground path (no vertical offset), always +8px
-        Renderer.updateSprite("player_shadow", 0, baseX, baseY + 8);
+        // Shadow sticks to ground path (no vertical offset), always +4px
+        Renderer.updateSprite("player_shadow", 9, baseX, baseY + 4);
 
         if (m.px >= m.dist) {
             player._hopBob = 0;
