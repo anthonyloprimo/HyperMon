@@ -921,9 +921,7 @@ HyperMon Editor – minimal bootstrap
             image: null,                // HTMLImageElement once loaded
             pixelWidth: 0,
             pixelHeight: 0,
-            animations: {             // { [tileIndex:number]: { image:string, totalFrames:number, frameWidth:number, _frame?:number } }
-                originalAnimationPath: "res/bg/animatedTiles.png"
-            },
+            animations: {},           // { [tileIndex:number]: { image:string, totalFrames:number, frameWidth:number, _frame?:number } }
             originalImagePath: "res/bg/tilesOutdoorA.png",
         },
         ui: {
@@ -997,6 +995,25 @@ HyperMon Editor – minimal bootstrap
 
     function clearChildren(node) {
         while (node.firstChild) node.removeChild(node.firstChild);
+    }
+
+    // default asset paths
+    const defaultTileDir = "res/bg/";
+    const defaultBgmDir  = "res/bgm";
+    
+    // path helpers - determines how to structure filename string
+    function isBlob(u) { return typeof u === "string" && u.startsWith("blob:"); }
+    function hasSlash(u) { return typeof u === "string" && u.includes("/"); }
+    function basename(u) {
+        if (!u) return "";
+        const q = u.split(/[?#]/)[0];
+        return q.substring(q.lastIndexOf("/") + 1);
+    }
+    // Resolve the above to proper directory - use default directories otherwise use specified file path.
+    function resolveToDir(nameOrPath, baseDir) {
+        if (!nameOrPath) return "";
+        if (hasSlash(nameOrPath)) return nameOrPath;
+        return baseDir.replace(/\/?$/, "/") + nameOrPath;
     }
 
     /* ---------------------- Tileset loading/render --------------------- */
@@ -1429,7 +1446,8 @@ HyperMon Editor – minimal bootstrap
                 const i = state.ui.selectedTileIndex;
                 const anim = state.tileset.animations[i];
                 if (anim && anim.image && !anim.image.startsWith("blob:")) {
-                    anim.originalImagePath = anim.image;
+                    // anim.originalImagePath = anim.image;
+                    anim.originalFileName = hasSlash(anim.image) ? anim.image : basename(anim.image);
                 }
                 buildTilePalette();
                 if (state.ui.selectedTileIndex != null) selectTile(state.ui.selectedTileIndex);
@@ -1849,7 +1867,7 @@ HyperMon Editor – minimal bootstrap
             upsertSelectedTileAnimation();  // writes anim.image = value
             const i = state.ui.selectedTileIndex;
             if (i != null && state.tileset.animations[i]) {
-                state.tileset.originalAnimationPath = file.name; // grab url for original file name
+                state.tileset.animations[i].originalFileName = file.name; // grab url for original file name
             }
             buildTilePalette();
             renderSquarePreview();
@@ -2291,14 +2309,27 @@ HyperMon Editor – minimal bootstrap
 
     // Turn state -> export model matching your template (ordered)
     function buildExportModel() {
-        // --- header fields
-        const mapName = document.getElementById("mapNameField").value || "ExampleMap";
-        const schema  = parseInt(document.getElementById("schemaVersion").value, 10) || 1;
-        const bgm     = document.getElementById("mapBGM").value || "";
+        // header fields
+        const mapName  = document.getElementById("mapNameField").value || "ExampleMap";
+        const schema   = parseInt(document.getElementById("schemaVersion").value, 10) || 1;
+        const bgmInput = document.getElementById("mapBGM").value || "";
+        const bgm      = resolveToDir(hasSlash(bgmInput) ? bgmInput : basename(bgmInput), defaultBgmDir);
 
-        // --- tileset
+        // tileset
+        // const tileset = {
+        //     image: state.tileset.originalImagePath || state.tileset.imagePath || "",
+        //     tileWidth: state.tileset.tileWidth,
+        //     tileHeight: state.tileset.tileHeight,
+        //     columns: state.tileset.columns,
+        //     animations: {}
+        // };
+        const tilesetImageNameOrPath = 
+            state.tileset.originalImagePath
+            || basename(state.tileset.imagePath)
+            || "";
+
         const tileset = {
-            image: state.tileset.originalImagePath || state.tileset.imagePath || "",
+            image: resolveToDir(tilesetImageNameOrPath, defaultTileDir),
             tileWidth: state.tileset.tileWidth,
             tileHeight: state.tileset.tileHeight,
             columns: state.tileset.columns,
@@ -2306,10 +2337,23 @@ HyperMon Editor – minimal bootstrap
         };
         // animations keyed by hex tile index
         for (const [k, anim] of Object.entries(state.tileset.animations)) {
+            if (!/^\d+$/.test(k)) continue;
             if (!anim) continue;
+
+            const animNameOrPath = 
+            anim.originalFileName
+            || basename(anim.image)
+            || "";
+
             const key = toHexStr(parseInt(k, 10));
+            // tileset.animations[key] = {
+            //     image: anim.originalImagePath || anim.image || "",
+            //     totalFrames: anim.totalFrames || 1,
+            //     frameWidth: anim.frameWidth || state.tileset.tileWidth,
+            //     frameHeight: anim.frameHeight || state.tileset.tileHeight
+            // };
             tileset.animations[key] = {
-                image: anim.originalImagePath || anim.image || "",
+                image: resolveToDir(animNameOrPath, defaultTileDir),
                 totalFrames: anim.totalFrames || 1,
                 frameWidth: anim.frameWidth || state.tileset.tileWidth,
                 frameHeight: anim.frameHeight || state.tileset.tileHeight

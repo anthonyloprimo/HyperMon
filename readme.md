@@ -41,7 +41,7 @@ I'm not insane.  *You're* insane.
 - In the map editor, resizing the map will clear everything without warning.
 - In the map editor, encounter tables cannot yet be defined (just placeholder and html scaffolding).
 - In the map editor, you can't yet open files.
-- In the map editor, file paths do not yet get loaded properly, and require manual editing of the file afterwards to properly direct the file path.
+- In the map editor, file paths display, but the blob filename is displayed (for animated tiles).
 
 ## Changelog:
 ### v0.0.14
@@ -49,6 +49,7 @@ I'm not insane.  *You're* insane.
 - Fixed a bug where the player wouldn't animate when bumping against a solid object or square.
 - Addded the ability to save and create animated tiles to the map editor.
 - Saving maps are possible.
+- Fixed a bug where file paths weren't displaying.
 
 ### v0.0.10
 - Added initial collision logic for player.
