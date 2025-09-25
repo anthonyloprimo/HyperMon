@@ -459,6 +459,7 @@
                             <div class="d-flex justify-content-between align-items-center mb-2">
                                 <div class="section-title mb-0">Squares</div>
                                 <div>
+                                    <button class="btn btn-sm btn-outline-secondary" id="btnCloneSquare">Clone</button>
                                     <button class="btn btn-sm btn-outline-primary" id="btnAddSquare">+</button>
                                     <button class="btn btn-sm btn-outline-danger" id="btnRemoveSquare">−</button>
                                 </div>
@@ -930,7 +931,8 @@ HyperMon Editor – minimal bootstrap
             gridOn: false,
             activeQuadrant: "tl",       // tl, tr, bl, br
             selectedSquareIndex: 0,
-            animatePreviewOn: true
+            animatePreviewOn: true,
+            animPendingNames: Object.create(null),
         },
         // Stubs we’ll flesh out
         squares: [
@@ -950,38 +952,39 @@ HyperMon Editor – minimal bootstrap
     /* ------------------------------ DOM ------------------------------- */
 
     const els = {
-        tilesetImage: document.getElementById("tilesetImage"),
-        tileWidth: document.getElementById("tileWidth"),
-        tileHeight: document.getElementById("tileHeight"),
-        tilesetColumns: document.getElementById("tilesetColumns"),
-        tilesGrid: document.getElementById("tilesGrid"),
+        tilesetImage:      document.getElementById("tilesetImage"),
+        tileWidth:         document.getElementById("tileWidth"),
+        tileHeight:        document.getElementById("tileHeight"),
+        tilesetColumns:    document.getElementById("tilesetColumns"),
+        tilesGrid:         document.getElementById("tilesGrid"),
 
-        squaresGrid: document.getElementById("squaresGrid"),
-        squarePreview: document.getElementById("squarePreview"),
-        quadPicker: document.getElementById("quadPicker"),
-        btnAddSquare: document.getElementById("btnAddSquare"),
-        btnRemoveSquare: document.getElementById("btnRemoveSquare"),
+        squaresGrid:       document.getElementById("squaresGrid"),
+        squarePreview:     document.getElementById("squarePreview"),
+        quadPicker:        document.getElementById("quadPicker"),
+        btnAddSquare:      document.getElementById("btnAddSquare"),
+        btnRemoveSquare:   document.getElementById("btnRemoveSquare"),
+        btnCloneSquare:    document.getElementById("btnCloneSquare"),
         
-        isAnimatedTile: document.getElementById("isAnimatedTile"),
-        animCollapse: document.getElementById("animCollapse"),
-        animImage: document.getElementById("animImage"),
-        totalFrames: document.getElementById("totalFrames"),
-        frameWidth: document.getElementById("frameWidth"),
-        frameHeight: document.getElementById("frameHeight"),
+        isAnimatedTile:    document.getElementById("isAnimatedTile"),
+        animCollapse:      document.getElementById("animCollapse"),
+        animImage:         document.getElementById("animImage"),
+        totalFrames:       document.getElementById("totalFrames"),
+        frameWidth:        document.getElementById("frameWidth"),
+        frameHeight:       document.getElementById("frameHeight"),
         toggleAnimPreview: document.getElementById("toggleAnimPreview"),
 
-        toggleGridBtn: document.getElementById("toggleGrid"),
-        mapView: document.getElementById("mapView"),
-        btnPickTileset: document.getElementById("btnPickTileset"),
-        btnPickAnim: document.getElementById("btnPickAnim"),
-        pickTilesetFile: document.getElementById("pickTilesetFile"),
-        pickAnimFile: document.getElementById("pickAnimFile"),
+        toggleGridBtn:     document.getElementById("toggleGrid"),
+        mapView:           document.getElementById("mapView"),
+        btnPickTileset:    document.getElementById("btnPickTileset"),
+        btnPickAnim:       document.getElementById("btnPickAnim"),
+        pickTilesetFile:   document.getElementById("pickTilesetFile"),
+        pickAnimFile:      document.getElementById("pickAnimFile"),
 
-        squareSolid: document.getElementById("squareSolid"),
-        squareSurface: document.getElementById("squareSurface"),
-        squareLedge: document.getElementById("squareLedge"),
-        squareTalkOver: document.getElementById("squareTalkOver"),
-        squareTags: document.getElementById("squareTags"),
+        squareSolid:       document.getElementById("squareSolid"),
+        squareSurface:     document.getElementById("squareSurface"),
+        squareLedge:       document.getElementById("squareLedge"),
+        squareTalkOver:    document.getElementById("squareTalkOver"),
+        squareTags:        document.getElementById("squareTags"),
     };
 
     /* --------------------------- Utilities ---------------------------- */
@@ -1262,6 +1265,48 @@ HyperMon Editor – minimal bootstrap
         syncSquareInputsFromState();
     }
 
+    let pvDragActive = false;
+    let pvDragButton = 0;
+    let pvLastQuad = null;
+
+    function classToQuadName(el) {
+        if (el.classList.contains("tl")) return "tl";
+        if (el.classList.contains("tr")) return "tr";
+        if (el.classList.contains("bl")) return "bl";
+        return "br";
+    }
+
+    function applyToQuad(name, button) {
+        state.ui.activeQuadrant = name;
+        if (button === 2) {
+            setActiveQuadrantTile(null);
+        } else {
+            applyTileToActiveQuadrant();
+        }
+    }
+
+    function previewMouseDown(e) {
+        e.preventDefault();
+        pvDragActive = true;
+        pvDragButton = (e.button === 2) ? 2 : 0;
+        const name = classToQuadName(e.currentTarget);
+        pvLastQuad = e.currentTarget;
+        applyToQuad(name, pvDragButton);
+    }
+
+    function previewMouseEnter(e) {
+        if (!pvDragActive) return;
+        if (pvLastQuad === e.currentTarget) return;
+        pvLastQuad = e.currentTarget;
+        const name = classToQuadName(e.currentTarget);
+        applyToQuad(name, pvDragButton);
+    }
+
+    function endPreviewDrag() {
+        pvDragActive = false;
+        pvLastQuad = null;
+    }
+
     function renderSquarePreview() {
         const preview = els.squarePreview;
         // Ensure preview has four quads we can click
@@ -1275,14 +1320,25 @@ HyperMon Editor – minimal bootstrap
                     state.ui.activeQuadrant = name;
                     applyTileToActiveQuadrant();
                 });
-                // Right-click to clear
+                // Right-click to clear current tile
                 q.addEventListener("contextmenu", (e) => {
                     e.preventDefault();
                     state.ui.activeQuadrant = name;
                     setActiveQuadrantTile(null);
                 });
+                // allow drag to paint as well
+                q.addEventListener("mousedown", previewMouseDown);
+                q.addEventListener("mouseenter", previewMouseEnter);
+
                 preview.appendChild(q);
             });
+
+            // container level helpers for drag to paint
+            preview.addEventListener("mouseup", endPreviewDrag);
+            preview.addEventListener("mouseleave", endPreviewDrag);
+            window.addEventListener("mouseup", endPreviewDrag, true);
+            preview.addEventListener("contextmenu", e => e.preventDefault()); // allow RMB drag-erase without menu
+
             preview.dataset.inited = "1";
         }
 
@@ -1369,7 +1425,7 @@ HyperMon Editor – minimal bootstrap
         setActiveQuadrantTile(idx);
     }
 
-    // Add/remove squares
+    // Add/remove/clone squares
     els.btnAddSquare.addEventListener("click", () => {
         state.squares.push({
             tiles: [null, null, null, null],
@@ -1394,16 +1450,47 @@ HyperMon Editor – minimal bootstrap
         renderMap();
     });
 
+    els.btnCloneSquare.addEventListener("click", () => {
+        const i = state.ui.selectedSquareIndex;
+        const src = state.squares[i];
+        if (!src) return;
+
+        const clone = {
+            tiles: src.tiles.slice(),
+            collision: {
+                solid: !!src.collision?.solid,
+                ledge: src.collision?.ledge ?? null,
+                surface: src.collision?.surface ?? "normal",
+                talkOver: !!src.collision?.talkOver
+            },
+            attributes: {
+                tags: Array.isArray(src.attributes?.tags) ? src.attributes.tags.slice() : []
+            }
+        }
+
+        state.squares.push(clone);
+        state.ui.selectedSquareIndex = state.squares.length - 1;
+        renderSquaresGrid();
+        renderSquarePreview();
+        syncSquareInputsFromState();
+        renderMap();
+    });
+
     // animation funcitons and inputs
     function upsertSelectedTileAnimation() {
         const i = state.ui.selectedTileIndex;
         if (i == null) return;
+        const v = els.animImage.value.trim();
+        const existing = state.tileset.animations[i] || {};
         state.tileset.animations[i] = {
-            image: els.animImage.value.trim(),
+            image: v,
             totalFrames: Math.max(1, parseInt(els.totalFrames.value, 10) || 1),
             frameWidth: Math.max(1, parseInt(els.frameWidth.value, 10) || state.tileset.tileWidth),
             frameHeight: Math.max(1, parseInt(els.frameHeight.value, 10) || state.tileset.tileHeight),
-            _frame: 0
+            _frame: 0,
+            originalFileName: existing.originalFileName
+                || state.ui.animPendingNames[i]
+                || (v && !v.startsWith("blob:") ? (hasSlash(v) ? v : basename(v)) : "")
         };
     }
 
@@ -1863,15 +1950,18 @@ HyperMon Editor – minimal bootstrap
             if (!file) return;
             const url = URL.createObjectURL(file);
             els.animImage.value = url;
-            if (els.isAnimatedTile.checked) {
-            upsertSelectedTileAnimation();  // writes anim.image = value
             const i = state.ui.selectedTileIndex;
-            if (i != null && state.tileset.animations[i]) {
-                state.tileset.animations[i].originalFileName = file.name; // grab url for original file name
-            }
-            buildTilePalette();
-            renderSquarePreview();
-            renderMap();
+            if (i == null) return;
+            state.ui.animPendingNames[i] = file.name;
+            if (els.isAnimatedTile.checked) {
+                upsertSelectedTileAnimation();  // writes anim.image = value
+                const anim = state.tileset.animations[i];
+                if (anim) {
+                    anim.originalFileName = file.name;
+                }
+                buildTilePalette();
+                renderSquarePreview();
+                renderMap();
             }
             // URL.revokeObjectURL(url); // later, when replacing/closing
         });
@@ -2340,10 +2430,16 @@ HyperMon Editor – minimal bootstrap
             if (!/^\d+$/.test(k)) continue;
             if (!anim) continue;
 
+            // const animNameOrPath = 
+            //     anim.originalFileName
+            //     || basename(anim.image)
+            //     || "";
             const animNameOrPath = 
-            anim.originalFileName
-            || basename(anim.image)
-            || "";
+                anim.originalFileName
+                || (anim.image && !anim.image.startsWith("blob:")
+                    ? (hasSlash(anim.image) ? anim.image : basename(anim.image))
+                    : "")
+                || "";
 
             const key = toHexStr(parseInt(k, 10));
             // tileset.animations[key] = {
