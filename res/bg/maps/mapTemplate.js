@@ -432,28 +432,61 @@ var mapTemplate = {
 
     "objects": [
         {
-            "name": "NPC_Clerk",
-            "kind": "npc",
-            "x": 5,
-            "y": 2,
-            "facing": "south",
-            "script": "clerk_dialogue_01"
+        "name": "AnyIdentifier",
+        "kind": "warp",
+
+        // placement (grid coords; can be outside bounds if you want bump-only edge warps)
+        "x": 10,
+        "y": 5,
+
+        // optional sprite for the warp tile (static or sheet-driven)
+        "sprite": {
+            // EITHER a static atlas index in staticSprites.png…
+            "staticIndex": 9,                // optional
+
+            // …OR a sheet-driven sprite (for animated/posed objects/NPCs)
+            // "spriteSheet": {
+            //     "image": "res/spr/doorAnim.png",
+            //     "mode": 0,                     // 0 = CLASSIC (2 cols per row), 1 = FULL (4 cols)
+            //     "frameW": 16,                  // (16)
+            //     "frameH": 16,                  // (16)
+            //     "cols": 4,                     // (4)
+            //     "idleFacing": "down",          // ("down")
+            //     "returnFacing": "down"         // optional: after interact, face back this way
+            // },
+            // "voff": -4,                      // visual y-offset for draw (optional)
+            // "zBias": 0                       // z-index bias relative to base (optional)
         },
-        {
-            "name": "Item_Ball_Potion",
-            "kind": "item",
-            "x": 8,
-            "y": 4,
-            "itemId": "POTION",
-            "script": "pickup_once"
+
+        // how it triggers
+        "trigger": {
+            "onStep": true,                  // stepping onto the tile triggers (false)
+            "onBump": false,                 // bumping from adjacent tile triggers (false)
+            "directions": ["N","S","E","W"]  // optional: restrict approach dirs; omit for any
         },
-        {
-            "name": "Sign_Town",
-            "kind": "sign",
-            "x": 3,
-            "y": 1,
-            "script": "sign_town_text"
-        }
+
+        // collision override if needed (door rugs/ladder tiles, etc.)
+        "walkThrough": true,               // (false) if true, player can occupy this tile
+
+        // destination
+        "to": {
+            "mapId": "Interior_HouseA",
+            "x": 4,                          // destination tile X
+            "y": 7,                          // destination tile Y
+            "facing": "down",                // optional; default: keep current facing
+            "autoWalk": true                 // optional; if true, auto-walk 1 tile out after spawn
+        },
+
+        // transitions and sfx (names your transition/audio code will resolve)
+        "transition": {
+            "out": "gen1ToBlack",            // (optional)
+            "in":  "gen1FromBlack"           // (optional)
+        },
+        "sfx": "doorEnter"                 // (optional) play on trigger
+
+        // (later) flags/conditions could live here if needed
+        // "flags": { "require": ["OAK_DONE"], "forbid": ["HAS_BIKE"] }
+    }
     ],
 
     "encounters": {

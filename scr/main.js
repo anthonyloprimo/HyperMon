@@ -1,7 +1,7 @@
 const jp = new Joypad({ repeatDelayFrames: 12, repeatRateFrames: 3 });
 
 // Testing map loading system
-MapLoader.loadMap("res/bg/maps/", "mapTemplate").then(({ map }) => {
+MapLoader.loadMap("res/bg/maps/", "palletTown").then(({ map }) => {
     if (!map) return;
     Renderer.init();
     Renderer.attachMap(map);

@@ -262,13 +262,13 @@ var playerRoom = {
 
     "ids": [
         10, 6, 7, 2, 2, 4, 2, 4,
-        11, 8, 9, 1, 1, 1, 1, 12,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 5, 1, 1, 1, 1,
-        1, 1, 1, 3, 1, 1, 1, 1,
-        13, 1, 1, 1, 1, 1, 15, 1,
-        14, 1, 1, 1, 1, 1, 16, 1
+        11, 8, 9, 1, 1, 1, 1,12,
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 5, 1, 1, 1, 1,
+         1, 1, 1, 3, 1, 1, 1, 1,
+        13, 1, 1, 1, 1, 1,15, 1,
+        14, 1, 1, 1, 1, 1,16, 1
     ]
 ,
 
@@ -282,7 +282,19 @@ var playerRoom = {
 }
 },
 
-"objects": [],
+"objects": [
+    {
+        "name": "warpToPlayerHouse",
+        "kind": "warp",
+        "x": 7, "y": 1,
+        "sprite": { },
+        "trigger": { "onStep": true },
+        "walkThrough": true,
+        "to": { "mapId": "playerHouse", "x": 7, "y": 1 },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_OUTSIDE"
+    }
+],
 
 "encounters": {
     "land": [],

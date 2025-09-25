@@ -233,14 +233,14 @@ var playerHouse = {
     "height": 8,
 
     "ids": [
-        10, 10, 2, 4, 2, 4, 2, 4,
-        11, 11, 1, 5, 1, 1, 1, 12,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 3, 6, 7, 3, 1, 1,
-        1, 1, 3, 8, 9, 3, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 14, 14, 1, 1, 1, 1
+        10,10, 2, 4, 2, 4, 2, 4,
+        11,11, 1, 5, 1, 1, 1,12,
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 3, 6, 7, 3, 1, 1,
+         1, 1, 3, 8, 9, 3, 1, 1,
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1,14,14, 1, 1, 1, 1
     ]
 ,
 
@@ -254,7 +254,42 @@ var playerHouse = {
 }
 },
 
-"objects": [],
+"objects": [
+    {
+        "name": "warpPlayerHouseToPalletL",
+        "kind": "warp",
+        "x": 2, "y": 8,
+        "sprite": { },
+        "trigger": { "onBump": true },
+        "walkThrough": false,
+        "to": { "mapId": "palletTown", "x": 2, "y": 7, "facing": "down", "autoWalk": true },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_OUTSIDE"
+    },
+    {
+        "name": "warpPlayerHouseToPalletR",
+        "kind": "warp",
+        "x": 3, "y": 8,
+        "sprite": { },
+        "trigger": { "onBump": true },
+        "walkThrough": false,
+        "to": { "mapId": "palletTown", "x": 2, "y": 7, "facing": "down", "autoWalk": true },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_OUTSIDE"
+    },
+    {
+        "name": "warpToPlayerRoom",
+        "kind": "warp",
+        "x": 7, "y": 1,
+        "sprite": { },
+        "trigger": { "onStep": true },
+        "walkThrough": true,
+        "to": { "mapId": "playerRoom", "x": 7, "y": 1 },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_OUTSIDE"
+    }
+
+],
 
 "encounters": {
     "land": [],
