@@ -34,7 +34,6 @@ I'm not insane.  *You're* insane.
 
 ## Known Bugs:
 - This is written in JavaScript, one big bug of a programming langauge.  Won't be fixed.
-- In the map editor, if no animated tiles are defined, a 0-indexed animated tile entry is still generated.
 - In the map editor, music preview doesn't work.
 - In the map editor, object placement functionality isn't implemented yet.
 - In the map editor, blocks aren't able to be created; the map currently only works with squaress (the 4x4 tile squares, not the 8x8 tile blocks).
@@ -51,6 +50,7 @@ I'm not insane.  *You're* insane.
 - Fixed a bug where file paths weren't displaying and the file name displays correctly.
 - Added the ability to click and drag when painting tiles on a square.
 - Added the ability to clone a square in the square palette.
+- Tweaked the map editor output so the map ID array looks pretty for readability.
 
 ### v0.0.10
 - Added initial collision logic for player.

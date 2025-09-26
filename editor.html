@@ -1116,6 +1116,8 @@ HyperMon Editor – minimal bootstrap
         renderSquarePreview();
     }
 
+    function digitCount(n) { return Math.max(1, String(Math.max(0, n|0)).length); }
+
     /* --------------------------- UI wiring ---------------------------- */
 
     async function applyTilesetFromInputs() {
@@ -2323,12 +2325,16 @@ HyperMon Editor – minimal bootstrap
     }
 
     // formats map.ids in visual rows (width values per row)
-    function formatMapIds(ids, width, baseIndent) {
+    function formatMapIds(ids, width, baseIndent, fieldWidth) {
         const indentRows = baseIndent + 8; // nice alignment under the '['
         const rows = [];
+
         for (let y = 0; y < Math.ceil(ids.length / width); y++) {
             const start = y * width;
-            rows.push(sp(indentRows) + ids.slice(start, start + width).join(", "));
+            const slice = ids.slice(start, start + width);
+
+            const line = slice.map(v => String(v|0).padStart(fieldWidth,  " ")).join(",");
+            rows.push(sp(indentRows) + line);
         }
         return [
             sp(baseIndent + 4) + `"ids": [`,
@@ -2371,12 +2377,16 @@ HyperMon Editor – minimal bootstrap
         lines.push(formatSquares(model.squares, indent1));
         lines.push(",");
         lines.push("");
+
         // map section
+        const maxIndex = Math.max(0, model.squares.length - 1);
+        const fieldWidth = digitCount(maxIndex);
+
         lines.push(`"map": {`);
         lines.push(sp(indent1) + `"width": ${model.map.width},`);
         lines.push(sp(indent1) + `"height": ${model.map.height},`);
         lines.push("");
-        lines.push(formatMapIds(model.map.ids, model.map.width, indent0));
+        lines.push(formatMapIds(model.map.ids, model.map.width, indent0, fieldWidth));
         lines.push(",");
         lines.push("");
         lines.push(sp(indent1) + `"voidSquare": ${model.map.voidSquare},`);
