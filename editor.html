@@ -896,6 +896,8 @@
     <!-- HIDDEN FILE INPUTS TO ALLOW FOR FILE UPLOADS IN ANY ENVIRONMENT (INCLUDING LOCAL FILE) -->
     <input type="file" id="pickTilesetFile" accept="image/*" hidden>
     <input type="file" id="pickAnimFile" accept="image/*" hidden>
+    <input type="file" id="pickBgmFile" accept="audio/*" class="d-none">
+    <input type="file" id="openFile" accept=".json,.js" hidden>
 
 <script>
 /* =========================================================================
@@ -933,6 +935,7 @@ HyperMon Editor – minimal bootstrap
             selectedSquareIndex: 0,
             animatePreviewOn: true,
             animPendingNames: Object.create(null),
+            bgmOriginalFilename: "",
         },
         // Stubs we’ll flesh out
         squares: [
@@ -946,6 +949,11 @@ HyperMon Editor – minimal bootstrap
             voidSquare: 0,
             _cells: [],
             _canvas: null
+        },
+        audio: {
+            el: null,
+            isPlaying: false,
+            blobUrl: ""
         }
     };
 
@@ -985,6 +993,14 @@ HyperMon Editor – minimal bootstrap
         squareLedge:       document.getElementById("squareLedge"),
         squareTalkOver:    document.getElementById("squareTalkOver"),
         squareTags:        document.getElementById("squareTags"),
+
+        mapBgm:            document.getElementById("mapBGM"),
+        btnPickBgm:        document.getElementById("btnPickBGM"),
+        pickBgmFile:       document.getElementById("pickBgmFile"),
+        btnToggleBgm:      document.getElementById("btnPlayStopBGM"),
+
+        btnOpen:           document.getElementById("btnOpen"),
+        openFile:          document.getElementById("openFile"),
     };
 
     /* --------------------------- Utilities ---------------------------- */
@@ -1552,7 +1568,6 @@ HyperMon Editor – minimal bootstrap
         });
     }
 
-    // ~10 FPS feels Gen1-ish. Tweak later or per-tile.
     const ANIM_FPS = 3;
     let _animAccum = 0;
     let _lastTs = 0;
@@ -1969,6 +1984,100 @@ HyperMon Editor – minimal bootstrap
         });
     }
 
+    function wireBgm() {
+        // create audio element
+        state.audio.el = new Audio();
+        state.audio.el.preload = "auto";
+
+        // file picker (remember filename for export)
+        if (els.btnPickBgm && els.pickBgmFile) {
+            els.btnPickBgm.addEventListener("click", () => els.pickBgmFile.click());
+            els.pickBgmFile.setAttribute("accept", "audio/*");
+
+            els.pickBgmFile.addEventListener("change", () => {
+                const file = els.pickBgmFile.files?.[0];
+                if (!file) return;
+
+                // Cleanup previous blob URL if we made one
+                if (state.audio.blobUrl) {
+                    try { URL.revokeObjectURL(state.audio.blobUrl); } catch {}
+                    state.audio.blobUrl = "";
+                }
+
+                const url = URL.createObjectURL(file);
+                state.ui.bgmOriginalFileName = file.name; // remember real filename
+                els.mapBgm.value = url;                   // show blob in the input for now
+                state.audio.el.src = url;                 // set playback source
+                state.audio.el.currentTime = 0;
+                state.audio.isPlaying = false;
+                updateBgmButton(false);
+                state.audio.blobUrl = url;
+            });
+        }
+
+        // if user types a path directly (non-blob) – stop playback and set src
+        if (els.mapBgm) {
+            els.mapBgm.addEventListener("change", () => {
+                const v = els.mapBgm.value.trim();
+                stopBgm(); // reset playback on change
+                if (!v) {
+                    state.audio.el.removeAttribute("src");
+                    return;
+                }
+                // If not a blob, and includes a slash, treat as full/relative path.
+                // Also remember filename (useful if they paste just "abc.ogg")
+                if (!isBlob(v)) {
+                    state.ui.bgmOriginalFileName = hasSlash(v) ? basename(v) : v;
+                }
+                state.audio.el.src = v;
+            });
+        }
+
+        // play/pause button
+        if (els.btnToggleBgm) {
+            els.btnToggleBgm.addEventListener("click", async () => {
+                if (!state.audio.el.src) {
+                    // No source yet? If input has a value, use it.
+                    const v = (els.mapBgm?.value || "").trim();
+                    if (v) state.audio.el.src = v;
+                }
+                if (!state.audio.el.src) return; // nothing to play
+
+                if (state.audio.isPlaying) {
+                    stopBgm();
+                } else {
+                    try {
+                        await state.audio.el.play();
+                        state.audio.isPlaying = true;
+                        updateBgmButton(true);
+                        console.debug("Playing music...");
+                    } catch (e) {
+                        console.warn("BGM play failed:", e);
+                    }
+                }
+            });
+        }
+
+        // Ensure UI updates if audio ends naturally
+        state.audio.el.addEventListener("ended", () => {
+            state.audio.isPlaying = false;
+            updateBgmButton(false);
+        });
+    }
+
+    function stopBgm() {
+        if (!state.audio.el) return;
+        try { state.audio.el.pause(); } catch {}
+        state.audio.el.currentTime = 0;
+        state.audio.isPlaying = false;
+        updateBgmButton(false);
+    }
+
+    function updateBgmButton(isPlaying) {
+        if (!els.btnToggleBgm) return;
+        // els.btnToggleBgm.textContent = isPlaying ? "Stop Music" : "Play Music";
+    }
+
     function pitchX() { return state.tileset.tileWidth  + state.tileset.gapX; }
     function pitchY() { return state.tileset.tileHeight + state.tileset.gapY; }
 
@@ -1993,6 +2102,35 @@ HyperMon Editor – minimal bootstrap
             y: -(ty * pitchY() * scale),
             visible: true
         };
+    }
+
+    function wireOpen() {
+        if (!els.btnOpen || !els.openFile) return;
+
+        els.btnOpen.addEventListener("click", () => els.openFile.click());
+
+        els.openFile.addEventListener("change", async () => {
+            const file = els.openFile.files && els.openFile.files[0];
+            if (!file) return;
+            try {
+                const text = await file.text();
+                const model = loadModelFromText(text);
+                const errs = validateModel(model);
+                if (errs.length) {
+                    alert("Could not open file:\n\n" + errs.join("\n"));
+                    return;
+                }
+                const normalized = normalizeModel(model);
+                await applyModelToState(normalized);
+                console.debug("[Open] Loaded:", { name: model.mapName, schema: model.schema });
+            } catch (e) {
+                console.warn("Open failed:", e);
+                alert("Failed to open file: " + (e && e.message ? e.message : String(e)));
+            } finally {
+                // Clear the input so selecting the same file again re-fires change
+                els.openFile.value = "";
+            }
+        });
     }
 
     // Build CSS background-image / background-position for a square id (4 layers)
@@ -2286,13 +2424,118 @@ HyperMon Editor – minimal bootstrap
         URL.revokeObjectURL(url);
     }
 
+    function loadModelFromText(text) {
+        const trimmed = text.trim();
+
+        // Pure JSON?
+        if (trimmed.startsWith("{")) {
+            return JSON.parse(trimmed);
+        }
+
+        // JS wrapper? Accept patterns like: var Name = { ... };
+        // Strategy: find first '=' and last ';', extract the JSON payload.
+        const eq = trimmed.indexOf("=");
+        if (eq === -1) throw new Error("Unrecognized file format.");
+        let rhs = trimmed.slice(eq + 1).trim();
+
+        // Remove trailing semicolon if present
+        if (rhs.endsWith(";")) rhs = rhs.slice(0, -1).trim();
+
+        // Basic guard
+        if (!rhs.startsWith("{") || !rhs.endsWith("}")) {
+            // Try a looser brace crop if needed
+            const firstBrace = rhs.indexOf("{");
+            const lastBrace  = rhs.lastIndexOf("}");
+            if (firstBrace === -1 || lastBrace === -1 || lastBrace <= firstBrace) {
+                throw new Error("JS wrapper detected, but could not locate the JSON object.");
+            }
+            rhs = rhs.slice(firstBrace, lastBrace + 1);
+        }
+
+        return JSON.parse(rhs);
+    }
+
+    function validateModel(m) {
+        const errs = [];
+
+        function typeErr(path, expected) {
+            errs.push(`${path} must be ${expected}.`);
+        }
+
+        if (!m || typeof m !== "object") {
+            errs.push("Top-level is not an object.");
+            return errs;
+        }
+
+        if (typeof m.schema !== "number") typeErr("schema", "a number");
+        if (typeof m.mapName !== "string") typeErr("mapName", "a string");
+        if (!m.tileset || typeof m.tileset !== "object") typeErr("tileset", "an object");
+        if (!m.map || typeof m.map !== "object") typeErr("map", "an object");
+        if (!Array.isArray(m.squares)) typeErr("squares", "an array");
+
+        if (m.tileset) {
+            const t = m.tileset;
+            if (typeof t.image !== "string") typeErr("tileset.image", "a string");
+            if (typeof t.tileWidth !== "number") typeErr("tileset.tileWidth", "a number");
+            if (typeof t.tileHeight !== "number") typeErr("tileset.tileHeight", "a number");
+            if (typeof t.columns !== "number") typeErr("tileset.columns", "a number");
+            if (t.animations && typeof t.animations !== "object") typeErr("tileset.animations", "an object");
+        }
+
+        if (m.map) {
+            const mm = m.map;
+            if (typeof mm.width !== "number") typeErr("map.width", "a number");
+            if (typeof mm.height !== "number") typeErr("map.height", "a number");
+            if (!Array.isArray(mm.ids)) typeErr("map.ids", "an array");
+            if (typeof mm.voidSquare !== "number") typeErr("map.voidSquare", "a number");
+
+            if (Array.isArray(mm.ids) && typeof mm.width === "number" && typeof mm.height === "number") {
+                const expected = mm.width * mm.height;
+                if (mm.ids.length !== expected) {
+                    errs.push(`map.ids length (${mm.ids.length}) does not match width×height (${expected}).`);
+                }
+            }
+        }
+
+        return errs;
+    }
+
+    function normalizeModel(m) {
+        // Shallow clone to avoid mutating caller
+        const n = JSON.parse(JSON.stringify(m));
+
+        // connections default shape
+        if (!n.map.connections || typeof n.map.connections !== "object") {
+            n.map.connections = { north: null, east: null, south: null, west: null };
+        } else {
+            ["north","east","south","west"].forEach(k => {
+                if (n.map.connections[k] == null) n.map.connections[k] = null;
+            });
+        }
+
+        if (!Array.isArray(n.objects))   n.objects = [];
+        if (!n.encounters || typeof n.encounters !== "object") {
+            n.encounters = { land: [], water: [], rodOld: [], rodGood: [], rodSuper: [], zones: [] };
+        } else {
+            n.encounters.land     = n.encounters.land     || [];
+            n.encounters.water    = n.encounters.water    || [];
+            n.encounters.rodOld   = n.encounters.rodOld   || [];
+            n.encounters.rodGood  = n.encounters.rodGood  || [];
+            n.encounters.rodSuper = n.encounters.rodSuper || [];
+            n.encounters.zones    = n.encounters.zones    || [];
+        }
+
+        return n;
+    }
+
     // ---------- Pretty-print helpers for custom formatting ----------
 
     function sp(n){ return " ".repeat(n); }
 
     // tiles on ONE line: [ "0x..", "0x..", "0x..", "0x.." ]
     function formatTilesArray(hex4, indent) {
-        const body = hex4.map(s => `"${s}"`).join(", ");
+        // const body = hex4.map(s => `"${s}"`).join(", ");
+        const body = hex4.map(s => (s == null ? "null" : `"${s}"`)).join(", ");
         return `${sp(indent)}"tiles": [ ${body} ]`;
     }
 
@@ -2412,8 +2655,18 @@ HyperMon Editor – minimal bootstrap
         // header fields
         const mapName  = document.getElementById("mapNameField").value || "ExampleMap";
         const schema   = parseInt(document.getElementById("schemaVersion").value, 10) || 1;
-        const bgmInput = document.getElementById("mapBGM").value || "";
-        const bgm      = resolveToDir(hasSlash(bgmInput) ? bgmInput : basename(bgmInput), defaultBgmDir);
+        
+        // bgm
+        const bgmInput = (document.getElementById("mapBGM").value || "").trim();
+        let bgmNameOrPath = "";
+
+        if (isBlob(bgmInput)) {
+            // use remembered filename when picked from file
+            bgmNameOrPath = state.ui.bgmOriginalFilename || "";
+        } else {
+            bgmNameOrPath = hasSlash(bgmInput) ? bgmInput : basename(bgmInput);
+        }
+        const bgm = resolveToDir(bgmNameOrPath, defaultBgmDir);
 
         // tileset
         // const tileset = {
@@ -2468,7 +2721,7 @@ HyperMon Editor – minimal bootstrap
 
         // --- squares (tiles as hex strings)
         const squares = state.squares.map(sq => ({
-            tiles: sq.tiles.map(ti => ti == null ? "0x00" : toHexStr(ti)),
+            tiles: sq.tiles.map(ti => (ti == null ? null : toHexStr(ti))),
             collision: {
                 solid: !!sq.collision?.solid,
                 ledge: sq.collision?.ledge ?? null,
@@ -2487,7 +2740,7 @@ HyperMon Editor – minimal bootstrap
         const mapSection = {
             width,
             height,
-            ids: state.map.ids.map(v => (v == null ? 0 : v >>> 0)), // numbers
+            ids: state.map.ids.map(v => (v == null ? null : (v >>> 0))), // numbers
             voidSquare: parseInt(document.getElementById("voidSquare").value, 10) || 0,
             connections: {
             north: (document.getElementById("connNorthId").value || "").trim()
@@ -2547,6 +2800,136 @@ HyperMon Editor – minimal bootstrap
         return `var ${varName} = ${toPrettyJSON(model)};\n`;
     }
 
+    // "0x1A" -> 26 ; "0x00" -> 0
+    function hexToIndex(hexStr) {
+        if (typeof hexStr !== "string") return 0;
+        if (/^0x[0-9A-Fa-f]+$/.test(hexStr)) return parseInt(hexStr, 16) >>> 0;
+        // Accept "0x.." or decimal strings
+        const n = parseInt(hexStr, 10);
+        return isNaN(n) ? 0 : (n >>> 0);
+    }
+
+    // // Editor uses null for "empty". File uses 0 for empty. (OLD; accidentally converts 0x00 to null)
+    // function hexToNullableIndex(hexStr) {
+    //     const n = hexToIndex(hexStr);
+    //     return n === 0 ? null : n;
+    // }
+    // null if field is empty or undefined, otherwise 0x00 is 0x00
+    function fieldToNullableIndex(v) {
+        if (v == null || v === "") return null;
+        if (typeof v === "string") return hexToIndex(v);
+        if (typeof v === "number") return v >>> 0;
+        return null;
+    }
+
+    function toMapIdOrNull(v) {
+        if (v == null || v === "") return null;          // only null/undefined/"" is empty
+        const n = (typeof v === "string") ? parseInt(v, 10) : v;
+        return Number.isFinite(n) ? (n >>> 0) : null;    // 0..N are valid indices
+    }
+    
+    async function applyModelToState(model) {
+        // ---- header/meta ----
+        document.getElementById("mapNameField").value = model.mapName || "";
+        // schemaVersion input is disabled in UI; we keep it as-is
+
+        // ---- BGM ----
+        if (els.mapBgm) {
+            els.mapBgm.value = model.bgm || "";
+            state.ui.bgmOriginalFilename = basename(model.bgm || "") || "";
+        }
+
+        // ---- tileset basics ----
+        const t = model.tileset || {};
+        els.tilesetImage.value   = t.image || "";
+        els.tileWidth.value      = String(t.tileWidth || 8);
+        els.tileHeight.value     = String(t.tileHeight || 8);
+        els.tilesetColumns.value = String(t.columns || 16);
+
+        // Set originals for export filename logic
+        state.tileset.originalImagePath = basename(t.image || "") || t.image || "";
+
+        // Load tileset (image, palette, etc.)
+        await applyTilesetFromInputs();
+
+        // ---- animations (keys are hex like "0x1A") ----
+        state.tileset.animations = {};
+        if (t.animations && typeof t.animations === "object") {
+            for (const [hexKey, a] of Object.entries(t.animations)) {
+                if (!a) continue;
+                const idx = /^0x/i.test(hexKey) ? parseInt(hexKey, 16) : parseInt(hexKey, 10);
+                if (isNaN(idx) || idx < 0) continue;
+
+                state.tileset.animations[idx] = {
+                    image: a.image || "",
+                    totalFrames: Math.max(1, a.totalFrames | 0) || 1,
+                    frameWidth: Math.max(1, a.frameWidth | 0) || state.tileset.tileWidth,
+                    frameHeight: Math.max(1, a.frameHeight | 0) || state.tileset.tileHeight,
+                    _frame: 0,
+                    originalFileName: basename(a.image || "") || ""
+                };
+            }
+        }
+
+        // Repaint palette/preview with animations present
+        buildTilePalette();
+        renderSquarePreview();
+
+        // ---- squares ----
+        state.squares = (model.squares || []).map(sq => {
+            const tiles = Array.isArray(sq.tiles) ? sq.tiles : [null,null,null,null];
+            return {
+                tiles: tiles.map(fieldToNullableIndex),
+                collision: {
+                    solid: !!(sq.collision && sq.collision.solid),
+                    ledge: (sq.collision && (sq.collision.ledge ?? null)),
+                    surface: (sq.collision && sq.collision.surface) || "normal",
+                    talkOver: !!(sq.collision && sq.collision.talkOver)
+                },
+                attributes: {
+                    tags: Array.isArray(sq.attributes && sq.attributes.tags) ? sq.attributes.tags.slice() : []
+                }
+            };
+        });
+
+        // Refresh squares UI
+        state.ui.selectedSquareIndex = 0;
+        renderSquaresGrid();
+        selectSquare(0); // also updates preview + inputs
+
+        // ---- map ----
+        state.map.width  = model.map.width | 0;
+        state.map.height = model.map.height | 0;
+
+        // Put new W/H in the UI fields too
+        document.getElementById("mapWidth").value  = String(state.map.width);
+        document.getElementById("mapHeight").value = String(state.map.height);
+
+        // Convert ids
+        const fileIds = Array.isArray(model.map.ids) ? model.map.ids : [];
+        // state.map.ids = fileIds.map(v => (v === 0 ? null : (v >>> 0)));
+        state.map.ids = fileIds.map(toMapIdOrNull);
+
+        // Connections & void square
+        document.getElementById("voidSquare").value = String(model.map.voidSquare | 0);
+        const cn = model.map.connections || {};
+        (document.getElementById("connNorthId").value   = cn.north?.mapId || ""),
+        (document.getElementById("connNorthOffset").value = String(cn.north?.offset || 0));
+        (document.getElementById("connEastId").value    = cn.east?.mapId || ""),
+        (document.getElementById("connEastOffset").value  = String(cn.east?.offset || 0));
+        (document.getElementById("connSouthId").value   = cn.south?.mapId || ""),
+        (document.getElementById("connSouthOffset").value = String(cn.south?.offset || 0));
+        (document.getElementById("connWestId").value    = cn.west?.mapId || ""),
+        (document.getElementById("connWestOffset").value  = String(cn.west?.offset || 0));
+
+        // Mount canvas to new size and render with existing ids
+        mountMapCanvas(true);
+        renderMap();
+
+        // Make sure inputs are in sync
+        syncSquareInputsFromState();
+    }
+
     /* ------------------------------ Init ------------------------------ */
 
     async function init() {
@@ -2561,6 +2944,8 @@ HyperMon Editor – minimal bootstrap
         wireSubmenus();
         wireSquareInputs();
         wireFilePickers();
+        wireBgm();
+        wireOpen();
 
         mountMapCanvas();
         setMapZoom(1);

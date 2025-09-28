@@ -33,13 +33,12 @@ I'm not insane.  *You're* insane.
     - Call sprites on-the-fly (i.e. the shadow that appears underneath when ledge hopping)
 
 ## Known Bugs:
-- This is written in JavaScript, one big bug of a programming langauge.  Won't be fixed.
-- In the map editor, music preview doesn't work.
+- The app is written in JS, HTML, CSS.  This bug cannot be fixed.
 - In the map editor, object placement functionality isn't implemented yet.
 - In the map editor, blocks aren't able to be created; the map currently only works with squaress (the 4x4 tile squares, not the 8x8 tile blocks).
 - In the map editor, resizing the map will clear everything without warning.
 - In the map editor, encounter tables cannot yet be defined (just placeholder and html scaffolding).
-- In the map editor, you can't yet open files.
+
 
 ## Changelog:
 ### v0.0.14
@@ -51,6 +50,8 @@ I'm not insane.  *You're* insane.
 - Added the ability to click and drag when painting tiles on a square.
 - Added the ability to clone a square in the square palette.
 - Tweaked the map editor output so the map ID array looks pretty for readability.
+- Music preview for the map editor.
+- Added file loading.
 
 ### v0.0.10
 - Added initial collision logic for player.
