@@ -349,20 +349,109 @@
     }
 
     function normalizeObjects(rawObjects, diags) {
+        // Normalize map objects (NPCs, items, warps, triggers, etc.)
+        // Preserves authored fields and lifts common warp options (e.g., autoWalk under `to`).
         dgroup("Objects");
         const out = [];
         const arr = Array.isArray(rawObjects) ? rawObjects : [];
+
         for (let i = 0; i < arr.length; i++) {
             const o = arr[i] || {};
+
+            // Base identity and placement
             const name = String(o.name || `obj_${i}`);
             const kind = String(o.kind || "decor");
             const x = clampInt(o.x ?? 0, 0, 1 << 20);
             const y = clampInt(o.y ?? 0, 0, 1 << 20);
             const facing = o.facing ? String(o.facing) : undefined;
+
+            // Optional authored behaviors
             const script = o.script ? String(o.script) : undefined;
             const itemId = o.itemId ? String(o.itemId) : undefined;
-            out.push({ id: `${name}_${i}`, name, kind, x, y, facing, script, itemId });
+
+            // Trigger configuration
+            const trigger = (o.trigger && typeof o.trigger === "object")
+                ? JSON.parse(JSON.stringify(o.trigger))
+                : undefined;
+
+            // Warp destination (with optional facing under `to`)
+            let to = undefined;
+            if (o.to && typeof o.to === "object") {
+                const mapId = String(o.to.mapId || "");
+                const tx = Number.isFinite(o.to.x) ? Math.trunc(o.to.x) : undefined;
+                const ty = Number.isFinite(o.to.y) ? Math.trunc(o.to.y) : undefined;
+                const tfacing = (o.to.facing != null) ? String(o.to.facing) : undefined;
+
+                to = { mapId, x: tx, y: ty };
+                if (tfacing !== undefined) to.facing = tfacing;
+
+                if (kind === "warp" && !mapId) {
+                    diagPush(diags, "warn", "OBJ_WARP_MISSING_MAPID", `Object '${name}' missing to.mapId`, { i, name });
+                }
+            }
+
+            // Optional transition hints for warps
+            const transition = (o.transition && typeof o.transition === "object")
+                ? {
+                    out: o.transition.out ? String(o.transition.out) : undefined,
+                    in:  o.transition.in  ? String(o.transition.in)  : undefined
+                }
+                : undefined;
+
+            // Optional sfx id for activation
+            const sfx = (o.sfx != null) ? String(o.sfx) : undefined;
+
+            // Walk-through/solid behavior
+            const walkThrough = (o.walkThrough != null) ? !!o.walkThrough : undefined;
+            const solid = (o.solid != null) ? !!o.solid : undefined;
+
+            // Flag-driven behavior
+            const requires = Array.isArray(o.requires) ? o.requires.map(f => String(f)) : undefined;
+            const once = (o.once != null) ? !!o.once : undefined;
+            const setOnUse = Array.isArray(o.setOnUse) ? o.setOnUse.map(f => String(f)) : undefined;
+
+            // Auto-walk one tile after warp: lift from top-level or from `to.autoWalk`
+            let autoWalk = (o.autoWalk != null) ? !!o.autoWalk : undefined;
+            if (autoWalk === undefined && o.to && typeof o.to === "object" && o.to.autoWalk != null) {
+                autoWalk = !!o.to.autoWalk;
+            }
+
+            // Pages (preserve for runtime selection)
+            const pages = Array.isArray(o.pages) ? JSON.parse(JSON.stringify(o.pages)) : undefined;
+
+            // Arbitrary data blob
+            const data = (o.data && typeof o.data === "object")
+                ? JSON.parse(JSON.stringify(o.data))
+                : undefined;
+
+            // Assemble normalized record
+            const rec = {
+                id: `${name}_${i}`,
+                name,
+                kind,
+                x,
+                y,
+                facing,
+                script,
+                itemId
+            };
+
+            if (trigger !== undefined)      rec.trigger = trigger;
+            if (to !== undefined)           rec.to = to;
+            if (transition !== undefined)   rec.transition = transition;
+            if (sfx !== undefined)          rec.sfx = sfx;
+            if (walkThrough !== undefined)  rec.walkThrough = walkThrough;
+            if (solid !== undefined)        rec.solid = solid;
+            if (requires !== undefined)     rec.requires = requires;
+            if (once !== undefined)         rec.once = once;
+            if (setOnUse !== undefined)     rec.setOnUse = setOnUse;
+            if (autoWalk !== undefined)     rec.autoWalk = autoWalk;
+            if (pages !== undefined)        rec.pages = pages;
+            if (data !== undefined)         rec.data = data;
+
+            out.push(rec);
         }
+
         console.debug(`objects: ${out.length}`);
         dend();
         return out;

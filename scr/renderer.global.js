@@ -1,7 +1,7 @@
 (function (global) {
     const R = {
         root: null, bg: null, sprites: null, ui: null,
- 
+
         // tileset info from MapLoader.attachMap
         tilesetImage: 'tileset.png',  // overwritten when a map is attached.
         tileW: 8,
@@ -11,23 +11,23 @@
         pitchX: 16,
         pitchY: 16,
         columns: 16,
- 
+
         // Grid info
         viewCols: 10,  // 10 tiles visible horizontally
         viewRows: 9,   // 9 tiles visible vertically
         gutter: 1,     // 1 tile gutter (or padding) around the entire screen
-                       // The above makes a grand total of 12 columns (10 + 2 gutters), 11 (9 + 2 gutters) rows, a total of 132 tiles
+                    // The above makes a grand total of 12 columns (10 + 2 gutters), 11 (9 + 2 gutters) rows, a total of 132 tiles
         
         // sprite sheet info
         tilesPerRow: 16,
         tileSize: 16,
         tileSheet: 'tileset.png',
         spritesheet: 'res/spr/staticSprites.png',  // path/to/file/ from root of 
- 
+
         // runtime buffers
         _tileEls: [],
         _spriteMap: new Map(),
- 
+
         // animations
         _animDefs: new Map(),
         _squareBgImg: [],
@@ -37,33 +37,33 @@
         _map: null,
         _squareBgPos: []  // index - "x y, x y, x y, x y"
     };
- 
+
     function initRenderer(){
         R.root    = document.getElementById('gameRoot');
         R.bg      = document.getElementById('layer-bg');
         R.sprites = document.getElementById('layer-sprites');
         R.ui      = document.getElementById('layer-ui');
- 
+
         // mount fixed grid
         const cols = R.viewCols + (R.gutter * 2);
         const rows = R.viewRows + (R.gutter * 2);
         mountBgGrid(cols, rows);
     }
- 
+
     function mountBgGrid(cols, rows){
         R.bg.innerHTML = '';
         R._tileEls.length = 0;
- 
+
         // fit grid template to new size
         R.bg.style.display = 'grid';
         R.bg.style.gridTemplateColumns = `repeat(${cols}, 16px)`;
         R.bg.style.gridTemplateRows    = `repeat(${rows}, 16px)`;
- 
+
         const frag = document.createDocumentFragment();
         for (let i = 0; i < cols * rows; i++){
             const d = document.createElement('div');
             d.className = 'tile';
- 
+
             // four layers - positions will be set per-square during draw
             const img = R.tilesetImage;
             d.style.backgroundImage = `url(${img}), url(${img}), url(${img}), url(${img})`;
@@ -73,7 +73,7 @@
         }
         R.bg.appendChild(frag);
     }
- 
+
     // compute base (top-left) bg offset for a tile index on a padded atlas
     function _basePosForTileIndex(ti) {
         // ti is numeric, columns is padded-atlas columns
@@ -84,7 +84,7 @@
         const baseY = -(row * R.pitchY);
         return [baseX, baseY];
     }
- 
+
     // precompute "x y, x y, x y, x y" bg positions for each square id from background-image and background-position
     function _precomputeSquareBgPos(map){
         const squares = map.squares;
@@ -136,7 +136,7 @@
             R._squareBgPos[i] = `${p0}, ${p1}, ${p2}, ${p3}`;
         }
     }
- 
+
     function attachMap(map){
         R._map = map;
         
@@ -150,14 +150,20 @@
         R.pitchX = ts.pitchX ?? (R.tileW + R.gapX);
         R.pitchY = ts.pitchY ?? (R.tileH + R.gapY);
         R.columns = ts.columns;
- 
+
         // ensure grid elements point to correct atlas
         for (let i = 0; i < R._tileEls.length; i++){
             const d = R._tileEls[i];
+            // Point all layers to the new tileset for a clean base
             d.style.backgroundImage = `url(${R.tilesetImage}), url(${R.tilesetImage}), url(${R.tilesetImage}), url(${R.tilesetImage})`;
+            // Invalidate cached square id so drawView refreshes this cell on first paint after attach
+            delete d.dataset.sq;
+            // Reset positions to a benign value until drawView writes per-square positions
+            d.style.backgroundPosition = `0px 0px, 0px 0px, 0px 0px, 0px 0px`;
         }
 
         R._animDefs.clear();
+        R._animTick = 0;
         if (ts.animations && typeof ts.animations.forEach === 'function') {
             ts.animations.forEach((def, tiNum) => {
                 const key = tiNum.toString(16).toUpperCase();
@@ -173,36 +179,36 @@
                 R.bg.style.setProperty(`--a-${key}-x`, `0px`);
             })
         }
- 
+
         // precompute per-square bg position
         _precomputeSquareBgPos(map);
     }
- 
+
     // function tileBgPos(index){
     //     const x = -((index % R.tilesPerRow) * R.tileSize);
     //     const y = -(Math.floor(index / R.tilesPerRow) * R.tileSize);
     //     return `${x}px ${y}px`;
     // }
- 
+
     // draw visible grid from world-square origin (top-left) w/ gutter baked in
     function drawView(originX, originY) {
         const map = R._map;
         if (!map) return;
- 
+
         const grid = map.grid.squares;
         const mw = grid.width;
         const mh = grid.height;
         const els = R._tileEls;
- 
+
         const cols = R.viewCols + (R.gutter * 2);
         const rows = R.viewRows + (R.gutter * 2);
- 
+
         let k = 0;
         for (let gy = 0; gy < rows; gy++) {
             const sy = originY + gy - R.gutter;
             for (let gx = 0; gx < cols; gx++, k++) {
                 const sx = originX + gx - R.gutter;
- 
+
                 // clamp/fallback to void when outside of the map
                 let sqIndex;
                 if (sx >= 0 && sy >= 0 && sx < mw && sy < mh) {
@@ -210,7 +216,7 @@
                 } else {
                     sqIndex = map.voidSquare;
                 }
- 
+
                 const el = els[k];
                 // avoid redundant style writes...
                 if (el.dataset.sq != sqIndex) {
@@ -219,6 +225,17 @@
                     el.style.backgroundPosition = R._squareBgPos[sqIndex];
                 }
             }
+        }
+    }
+
+    // clear the BG view
+    function clearBg(){
+        if (!R._tileEls || R._tileEls.length === 0) return;
+        for (let i = 0; i < R._tileEls.length; i++){
+            const d = R._tileEls[i];
+            d.style.backgroundImage = 'none, none, none, none';
+            d.style.backgroundPosition = '0px 0px, 0px 0px, 0px 0px, 0px 0px';
+            delete d.dataset.sq;
         }
     }
 
@@ -232,7 +249,7 @@
             R.bg.style.setProperty(`--a-${def.key}-x`, `${x}px`);
         });
     }
- 
+
     // Sprites
     function addSprite(id, frameIndex, x, y){
         let el = R._spriteMap.get(id);
@@ -266,7 +283,7 @@
         const el = R._spriteMap.get(id);
         if (el){ el.remove(); R._spriteMap.delete(id); }
     }
- 
+
     // TextBox (mounted in UI layer)
     function ensureTextBox(){
         let box = R.ui.querySelector('.ui-box');
@@ -278,7 +295,7 @@
         }
         return box;
     }
- 
+
     global.Renderer = {
         init: initRenderer,
         attachMap: attachMap,
@@ -287,6 +304,7 @@
         updateSprite: updateSprite,
         removeSprite: removeSprite,
         ensureTextBox: ensureTextBox,
-        animate: animate
+        animate: animate,
+        clearBg: clearBg
     };
 })(window);

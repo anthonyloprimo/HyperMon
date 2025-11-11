@@ -9,7 +9,6 @@ Oh, because I hate myself a lot, I'm challenging myself to see if I can't make i
 
 I'm not insane.  *You're* insane.
 
-
 ## Features:
 1. Text system that behaves as close to the original system as possible (`TextBox.show();`)
     - The system is smarter though - auto detects and inserts new lines where and when appropriate
@@ -25,6 +24,7 @@ I'm not insane.  *You're* insane.
     - Animated tiles follow the same rule, but are separate files.  We link animated tiles to their representation in the tileset inside of the map data.
     - Sprites are generally 16x16 px images and are separate files
     - Maps are rendered solely within `<div>` elements!
+    - Warps and map objects are possible, with flag pages to trigger when to show or hid and execute (or not) various events.
 
 3. Sprites
     - Sprites utilize sprite sheets, one sheet per specific object and state (item balls, player sprite, flying sprite, NPCs, all separate files)
@@ -39,8 +39,11 @@ I'm not insane.  *You're* insane.
 - In the map editor, resizing the map will clear everything without warning.
 - In the map editor, encounter tables cannot yet be defined (just placeholder and html scaffolding).
 
-
 ## Changelog:
+### v0.0.16
+- Added warp objects and flags to map handling.  So far just warps are working properly.
+- When autowalk is enabled for a warp, the player will move one square in the direction they are facing, and the player input is locked to prevent interrupting the auto-walk sequence.
+
 ### v0.0.14
 - Fixed a bug where the player didn't animate when walking correctly.
 - Fixed a bug where the player wouldn't animate when bumping against a solid object or square.

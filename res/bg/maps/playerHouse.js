@@ -235,12 +235,12 @@ var playerHouse = {
     "ids": [
         10,10, 2, 4, 2, 4, 2, 4,
         11,11, 1, 5, 1, 1, 1,12,
-         1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1, 3, 6, 7, 3, 1, 1,
-         1, 1, 3, 8, 9, 3, 1, 1,
-         1, 1, 1, 1, 1, 1, 1, 1,
-         1, 1,14,14, 1, 1, 1, 1
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1, 3, 6, 7, 3, 1, 1,
+        1, 1, 3, 8, 9, 3, 1, 1,
+        1, 1, 1, 1, 1, 1, 1, 1,
+        1, 1,14,14, 1, 1, 1, 1
     ]
 ,
 
@@ -262,7 +262,7 @@ var playerHouse = {
         "sprite": { },
         "trigger": { "onBump": true },
         "walkThrough": false,
-        "to": { "mapId": "palletTown", "x": 2, "y": 7, "facing": "down", "autoWalk": true },
+        "to": { "mapId": "palletTown", "x": 5, "y": 5, "facing": "down", "autoWalk": true },
         "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
         "sfx": "SFX_GO_OUTSIDE"
     },
@@ -273,7 +273,7 @@ var playerHouse = {
         "sprite": { },
         "trigger": { "onBump": true },
         "walkThrough": false,
-        "to": { "mapId": "palletTown", "x": 2, "y": 7, "facing": "down", "autoWalk": true },
+        "to": { "mapId": "palletTown", "x": 5, "y": 5, "facing": "down", "autoWalk": true },
         "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
         "sfx": "SFX_GO_OUTSIDE"
     },

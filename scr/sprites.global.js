@@ -6,7 +6,8 @@
         defineSheet,
         spawn,
         update,                // call from your main loop
-        get: id => ACTORS.get(id) || null
+        get: id => ACTORS.get(id) || null,
+        startMove              // programmatic one-tile move
     };
     g.Sprites = Sprites;
 
@@ -98,27 +99,36 @@
             return;
         }
 
-        // check if textbox is active...
+        // No player input this frame (e.g., textbox, auto-walk lock, etc.)
+        // Do NOT cancel active motion; allow current movement/hop to continue.
+        // Only force idle when not moving.
         if (!jp) {
-            a.moving = false;
-            a.animTick = 0;
-            applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, false));
-            stampTransform(a);
-            return;
+            if (!a.moving && !(a.motion && a.motion.kind === "HOP")) {
+                a.animTick = 0;
+                applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, false));
+                stampTransform(a);
+                return;
+            }
+            // When moving or hopping, skip input handling below but continue advancing motion.
+            // We do NOT return here; the rest of tick will run with dirPressed/dirHeld=null.
         }
 
         // Input → desired facing + maybe initiate a move
         const dirPressed =
-            jp.pressed("up") ? "up" :
-            jp.pressed("down") ? "down" :
-            jp.pressed("left") ? "left" :
-            jp.pressed("right") ? "right" : null;
+            jp ? (
+                jp.pressed("up")    ? "up"    :
+                jp.pressed("down")  ? "down"  :
+                jp.pressed("left")  ? "left"  :
+                jp.pressed("right") ? "right" : null
+            ) : null;
 
         const dirHeld =
-            jp.held("up") ? "up" :
-            jp.held("down") ? "down" :
-            jp.held("left") ? "left" :
-            jp.held("right") ? "right" : null;
+            jp ? (
+                jp.held("up")    ? "up"    :
+                jp.held("down")  ? "down"  :
+                jp.held("left")  ? "left"  :
+                jp.held("right") ? "right" : null
+            ) : null;
 
         if (!a.moving) {
             // handle taps to turn without moving
@@ -221,6 +231,17 @@
             // idle: ensure idle frame stays
             applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, false));
         }
+    }
+
+    /**
+     * Programmatically start a one-tile move for an actor by id.
+     * Returns true if a move was initiated, false otherwise.
+     */
+    function startMove(id, dir) {
+        const a = ACTORS.get(id);
+        if (!a) return false;
+        startMoveOneTile(a, String(dir || a.facing || "down"));
+        return true;
     }
 
     function startMoveOneTile(a, dir) {
