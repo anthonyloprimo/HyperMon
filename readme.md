@@ -6,7 +6,6 @@ This is a challenge to see if I can do everything using HTML, CSS, and JavaScrip
 Oh, because I hate myself a lot, I'm challenging myself to see if I can't make it all work within the DOM.  Like, no `<canvas>`.  Just the DOM.
 
 
-
 I'm not insane.  *You're* insane.
 
 ## Features:
@@ -24,7 +23,8 @@ I'm not insane.  *You're* insane.
     - Animated tiles follow the same rule, but are separate files.  We link animated tiles to their representation in the tileset inside of the map data.
     - Sprites are generally 16x16 px images and are separate files
     - Maps are rendered solely within `<div>` elements!
-    - Warps and map objects are possible, with flag pages to trigger when to show or hid and execute (or not) various events.
+
+
 
 3. Sprites
     - Sprites utilize sprite sheets, one sheet per specific object and state (item balls, player sprite, flying sprite, NPCs, all separate files)
@@ -40,6 +40,10 @@ I'm not insane.  *You're* insane.
 - In the map editor, encounter tables cannot yet be defined (just placeholder and html scaffolding).
 
 ## Changelog:
+### v0.0.20
+- Adjusted the starting map the the player's room to align with the original game.
+- Updated collision detection to account for movement state (walk, surf, bike).  Water squares behave like walls when not in surf mode)
+
 ### v0.0.16
 - Added warp objects and flags to map handling.  So far just warps are working properly.
 - When autowalk is enabled for a warp, the player will move one square in the direction they are facing, and the player input is locked to prevent interrupting the auto-walk sequence.

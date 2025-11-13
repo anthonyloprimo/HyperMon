@@ -129,7 +129,8 @@ async function runWarp(act) {
                 if (p && window.Collision && typeof Sprites.startMove === 'function') {
                     const tx = Collision.toTileX(p.x);
                     const ty = Collision.toTileY(p.y);
-                    const res = Collision.canStartStep(tx, ty, p.facing);
+
+                    const res = Collision.canStartStep(tx, ty, p.facing, { moveMode: p.moveMode || 'WALK' });
 
                     if (res && res.ok && res.mode === "WALK") {
                         Sprites.startMove('player', p.facing);
@@ -165,7 +166,7 @@ async function runWarp(act) {
 }
 
 // Testing map loading system
-MapLoader.loadMap("res/bg/maps/", "palletTown").then(({ map }) => {
+MapLoader.loadMap("res/bg/maps/", "playerRoom").then(({ map }) => {
     if (!map) return;
     Renderer.init();
     Renderer.attachMap(map);
@@ -180,7 +181,7 @@ MapLoader.loadMap("res/bg/maps/", "palletTown").then(({ map }) => {
     const p = Sprites.spawn({
         id: 'player',
         sheet: 'PLAYER_MODE0',
-        x: 64, y: 64,
+        x: 48, y: 96,  // in px, so specify (tile x 16) i.3. (3, 6) = (48, 96)
         facing: 'down'
     });
     Camera.setTarget(p);

@@ -69,6 +69,7 @@
             x, y, voff, facing,     // world pixel position / dir as well as vertical offset
             flip: false,            // scaleX(-1) or not
             mode: def.mode,
+            moveMode: 'WALK',       // WALK | BIKE | SURF; used by collision rules (speed tuning handled elsewhere)
             frameIndex: 0,          // local frame (0..N) used to compute bg-pos
             animTick: 0,
             moving: false,
@@ -222,7 +223,7 @@
                     startMoveOneTile(a, a.facing);
                     return;
                 }
-                
+
                 // settle to idle facing when stopped
                 a.animTick = 0;
                 applyFrame(a, idleFrameFor(a, a.facing), flipFor(a, a.facing, false));
@@ -255,7 +256,8 @@
         const ty = (a.y / TILE) | 0;
 
         // Check if we can step
-        const res = window.Collision && Collision.canStartStep(tx, ty, dir);
+        // Pass actor's movement mode so water rules (and future mode-specific rules) apply correctly
+        const res = window.Collision && Collision.canStartStep(tx, ty, dir, { moveMode: a.moveMode || 'WALK' });
         if (!res || !res.ok) {
             // can't move forward
             a.moving = false;
@@ -523,10 +525,10 @@
         if (m.px >= m.dist) {
             player._hopBob = 0;
             stampTransform(player);
-            
+
             if (m.onDone) m.onDone();
             player.motion = null;
-            
+           
             applyFrame(player, idleFrameFor(player, player.facing), flipFor(player, player.facing, false));
         }
 
