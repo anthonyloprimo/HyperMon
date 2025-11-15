@@ -85,6 +85,77 @@
         return [baseX, baseY];
     }
 
+    // New code: per-map square imagery cache (mapId -> { img:[], pos:[] })
+    const _MAP_CACHE = new Map();
+
+    // New code: compute square background image/position arrays for a specific map
+    function prepareMapCache(map) {
+        if (!map || !map.id || !map.tileset || !Array.isArray(map.squares)) return;
+        if (_MAP_CACHE.has(map.id)) return;
+
+        const ts = map.tileset;
+        const tileW   = ts.tileWidth;
+        const tileH   = ts.tileHeight;
+        const gapX    = ts.gapX ?? ts.tileWidth;
+        const gapY    = ts.gapY ?? ts.tileHeight;
+        const pitchX  = ts.pitchX ?? (tileW + gapX);
+        const pitchY  = ts.pitchY ?? (tileH + gapY);
+        const columns = ts.columns;
+        const anims   = ts.animations;
+
+        function basePosForIndex(ti) {
+            const col = ti % columns;
+            const row = Math.floor(ti / columns);
+            const bx = -(col * pitchX);
+            const by = -(row * pitchY);
+            return [bx, by];
+        }
+        function posStatic(bx, by, dx, dy) {
+            return `${(bx + dx)}px ${(by + dy)}px`;
+        }
+        function posAnim(key, dx, dy) {
+            // frames move horizontally; dx adds quadrant shift; var provides frame offset (negative)
+            return `calc(var(--a-${key}-x) + ${dx}px) ${dy}px`;
+        }
+
+        const img = new Array(map.squares.length);
+        const pos = new Array(map.squares.length);
+
+        for (let i = 0; i < map.squares.length; i++) {
+            const sq = map.squares[i];
+            const [tl, tr, bl, br] = sq.tiles.map(n => (typeof n === 'number' ? n : parseInt(String(n), 16)));
+
+            const src = [ts.image, ts.image, ts.image, ts.image];
+
+            const [bx0, by0] = basePosForIndex(tl);
+            const [bx1, by1] = basePosForIndex(tr);
+            const [bx2, by2] = basePosForIndex(bl);
+            const [bx3, by3] = basePosForIndex(br);
+
+            let p0 = posStatic(bx0, by0, 0,          0);
+            let p1 = posStatic(bx1, by1, tileW,      0);
+            let p2 = posStatic(bx2, by2, 0,          tileH);
+            let p3 = posStatic(bx3, by3, tileW,      tileH);
+
+            // New code: swap to animation image + CSS var if this tile index is animated in this map
+            if (anims && typeof anims.forEach === 'function') {
+                const a0 = anims.get && anims.get(tl);
+                const a1 = anims.get && anims.get(tr);
+                const a2 = anims.get && anims.get(bl);
+                const a3 = anims.get && anims.get(br);
+                if (a0 && a0.image) { src[0] = a0.image; p0 = posAnim(tl.toString(16).toUpperCase(), 0,          0); }
+                if (a1 && a1.image) { src[1] = a1.image; p1 = posAnim(tr.toString(16).toUpperCase(), tileW,     0); }
+                if (a2 && a2.image) { src[2] = a2.image; p2 = posAnim(bl.toString(16).toUpperCase(), 0,          tileH); }
+                if (a3 && a3.image) { src[3] = a3.image; p3 = posAnim(br.toString(16).toUpperCase(), tileW,     tileH); }
+            }
+
+            img[i] = `url(${src[0]}), url(${src[1]}), url(${src[2]}), url(${src[3]})`;
+            pos[i] = `${p0}, ${p1}, ${p2}, ${p3}`;
+        }
+
+        _MAP_CACHE.set(map.id, { img, pos });
+    }
+
     // precompute "x y, x y, x y, x y" bg positions for each square id from background-image and background-position
     function _precomputeSquareBgPos(map){
         const squares = map.squares;
@@ -140,6 +211,9 @@
     function attachMap(map){
         R._map = map;
         
+        // New code: build/cache imagery for the current map
+        prepareMapCache(map);
+
         // tileset knobs
         const ts = map.tileset;
         R.tilesetImage = ts.image;
@@ -195,11 +269,7 @@
         const map = R._map;
         if (!map) return;
 
-        const grid = map.grid.squares;
-        const mw = grid.width;
-        const mh = grid.height;
         const els = R._tileEls;
-
         const cols = R.viewCols + (R.gutter * 2);
         const rows = R.viewRows + (R.gutter * 2);
 
@@ -209,20 +279,44 @@
             for (let gx = 0; gx < cols; gx++, k++) {
                 const sx = originX + gx - R.gutter;
 
-                // clamp/fallback to void when outside of the map
+                // New code: resolve owning map for this world tile (sx,sy) relative to current
+                let owner = null;
+                if (window.World && typeof World.resolveOwner === "function") {
+                    owner = World.resolveOwner(sx, sy);
+                }
+
+                let cacheMap = map;              // default to current map
+                let qx = sx, qy = sy;            // coords to sample in owner's grid
+                if (owner && owner.map && owner.map.grid && owner.map.grid.squares) {
+                    cacheMap = owner.map;
+                    qx = owner.tx;
+                    qy = owner.ty;
+                }
+
+                // Ensure cache for the chosen map exists
+                if (!_MAP_CACHE.has(cacheMap.id)) {
+                    prepareMapCache(cacheMap);
+                }
+                const cache = _MAP_CACHE.get(cacheMap.id);
+
+                const grid = cacheMap.grid.squares;
                 let sqIndex;
-                if (sx >= 0 && sy >= 0 && sx < mw && sy < mh) {
-                    sqIndex = grid.ids[sy * mw + sx];
+                if (qx >= 0 && qy >= 0 && qx < grid.width && qy < grid.height) {
+                    sqIndex = grid.ids[qy * grid.width + qx];
+                    if (sqIndex == null) sqIndex = cacheMap.voidSquare;
                 } else {
+                    // Outside owning grid: fallback to current map's void square visual
                     sqIndex = map.voidSquare;
                 }
 
                 const el = els[k];
-                // avoid redundant style writes...
-                if (el.dataset.sq != sqIndex) {
-                    el.dataset.sq = sqIndex;
-                    el.style.backgroundImage = R._squareBgImg[sqIndex];
-                    el.style.backgroundPosition = R._squareBgPos[sqIndex];
+                // New key combines map id + square index to avoid false cache hits
+                const key = cacheMap.id + ":" + String(sqIndex);
+
+                if (el.dataset.sq !== key) {
+                    el.dataset.sq = key;
+                    el.style.backgroundImage = cache.img[sqIndex];
+                    el.style.backgroundPosition = cache.pos[sqIndex];
                 }
             }
         }
@@ -305,6 +399,7 @@
         removeSprite: removeSprite,
         ensureTextBox: ensureTextBox,
         animate: animate,
-        clearBg: clearBg
+        clearBg: clearBg,
+        prepareMapCache: prepareMapCache
     };
 })(window);

@@ -3,6 +3,12 @@ const jp = new Joypad({ repeatDelayFrames: 12, repeatRateFrames: 3 });
 // Map directory and entry map (keep consistent with your existing load call)
 const MAP_DIR = "res/bg/maps/";
 
+// Initialize world manager with map directory
+if (window.World && typeof World.init === 'function') {
+    World.init({ dir: MAP_DIR });
+    World.setDir && World.setDir(MAP_DIR);
+}
+
 // Simple busy gate to pause interactions during transitions/warps
 let WORLD_BUSY = false;
 
@@ -12,8 +18,22 @@ let _lastPlayerTx = null, _lastPlayerTy = null;
 // Track if the player was bumping against an onBump trigger
 let _wasBumping = false;
 
+// New code: track player moving state to detect step completion
+let _prevMoving = false;
+
 // Auto-walk input lock flag: true while the player is performing an automatic one-tile step
 let AUTO_WALKING = false;
+
+// Input suppression gate after UI closes (e.g., textbox)
+// Tuned to ~0.5s at 60fps; adjust to taste to better match GB feel.
+const INPUT_SUPPRESS_FRAMES = 30;
+
+// Tracks how many frames remain to ignore player inputs entirely.
+// While > 0, we treat input as “locked” the same way as during warps/auto-walk.
+let _inputSuppressFrames = 0;
+
+// Tracks the previous textbox-open state for edge detection.
+let _wasTextboxOpen = false;
 
 // Helper to read current player tile (safe if player not yet spawned)
 function getPlayerTile() {
@@ -78,6 +98,11 @@ async function runWarp(act) {
         const nextMap = res && res.map;
         if (!nextMap) throw new Error('Failed to load destination map: ' + mapId);
 
+        // Attach world first (preload neighbors, manage BGM)
+        if (window.World && typeof World.attachMap === 'function') {
+            await World.attachMap(nextMap);
+        }
+
         // Attach map to renderer/collision/objects
         Renderer.attachMap(nextMap);
         Collision.attachMap(nextMap);
@@ -129,7 +154,6 @@ async function runWarp(act) {
                 if (p && window.Collision && typeof Sprites.startMove === 'function') {
                     const tx = Collision.toTileX(p.x);
                     const ty = Collision.toTileY(p.y);
-
                     const res = Collision.canStartStep(tx, ty, p.facing, { moveMode: p.moveMode || 'WALK' });
 
                     if (res && res.ok && res.mode === "WALK") {
@@ -171,6 +195,11 @@ MapLoader.loadMap("res/bg/maps/", "playerRoom").then(({ map }) => {
     Renderer.init();
     Renderer.attachMap(map);
     Collision.attachMap(map);
+
+    // Attach world (tracks current map and preloads neighbors)
+    if (window.World && typeof World.attachMap === 'function') {
+        World.attachMap(map);
+    }
 
     // Attach objects so triggers can be queried
     if (window.ObjectManager) ObjectManager.attachMap(map);
@@ -267,13 +296,60 @@ function update(dt){
 
     scenes.update(dt);
 
-    // Lock player input while any textbox is open or world is busy (e.g., during warp)
-    const lockInput = TextBox.anyOpen() || WORLD_BUSY || AUTO_WALKING;
+    // Track textbox close to start an input suppression window.
+    // This prevents a held A (or any key) that closed the textbox from immediately
+    // re-triggering interactions on the same frame tick.
+    const nowTextboxOpen = TextBox.anyOpen();
+    if (_wasTextboxOpen && !nowTextboxOpen) {
+        // Textbox just closed this frame → engage suppression window
+        _inputSuppressFrames = INPUT_SUPPRESS_FRAMES;
+    }
+    _wasTextboxOpen = nowTextboxOpen;
+
+    // Count down suppression window (if any)
+    if (_inputSuppressFrames > 0) {
+        _inputSuppressFrames--;
+    }
+
+    // Convenience flag for this frame
+    const INPUT_SUPPRESSED = (_inputSuppressFrames > 0);
+    
+    // Lock player input while textbox is open, world is busy, auto-walking,
+    // or during the post-textbox input suppression window.
+    const lockInput = nowTextboxOpen || WORLD_BUSY || AUTO_WALKING || INPUT_SUPPRESSED;
+
     Sprites.update({ jp, dt, inputLock: lockInput });
+    // When the player step just finished, apply seam switch immediately
+    {
+        const p = Sprites.get('player');
+        if (p && window.World && typeof World.checkMapSwitchAndApply === 'function') {
+            const atBoundary = (p.x % 16 === 0) && (p.y % 16 === 0);
+            if (atBoundary) {
+                World.checkMapSwitchAndApply(p);
+            }
+        }
+    }
     Camera.update();
 
     // Object triggers: STEP
-    if (!WORLD_BUSY && window.ObjectManager && window.Collision) {
+    // if (!WORLD_BUSY && window.ObjectManager && window.Collision) {
+    //     const p = Sprites.get('player');
+    //     if (p && !p.moving) {
+    //         const cur = getPlayerTile();
+    //         if (cur) {
+    //             // Fire onStep only when tile truly changed since last settled position
+    //             if (cur.tx !== _lastPlayerTx || cur.ty !== _lastPlayerTy) {
+    //                 _lastPlayerTx = cur.tx; _lastPlayerTy = cur.ty;
+    //                 const actions = ObjectManager.onStep({ tx: cur.tx, ty: cur.ty });
+    //                 if (actions && actions.length > 0) {
+    //                     // Run first action (warp/script/sfx)
+    //                     runActions(actions);
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+    if (!WORLD_BUSY && window.Collision) {
         const p = Sprites.get('player');
         if (p && !p.moving) {
             const cur = getPlayerTile();
@@ -281,9 +357,18 @@ function update(dt){
                 // Fire onStep only when tile truly changed since last settled position
                 if (cur.tx !== _lastPlayerTx || cur.ty !== _lastPlayerTy) {
                     _lastPlayerTx = cur.tx; _lastPlayerTy = cur.ty;
-                    const actions = ObjectManager.onStep({ tx: cur.tx, ty: cur.ty });
+
+                    // New code: seamless map switch if the settled tile belongs to a neighbor
+                    if (window.World && typeof World.checkMapSwitchAndApply === 'function') {
+                        World.checkMapSwitchAndApply(p);
+                    }
+
+                    // New code: world-aware onStep with precedence (owning map > OOB current)
+                    const actions = (window.World && typeof World.onStep === 'function')
+                        ? World.onStep({ tx: cur.tx, ty: cur.ty })
+                        : (window.ObjectManager ? ObjectManager.onStep({ tx: cur.tx, ty: cur.ty }) : []);
+
                     if (actions && actions.length > 0) {
-                        // Run first action (warp/script/sfx)
                         runActions(actions);
                     }
                 }
@@ -299,15 +384,20 @@ function update(dt){
         }
     }
 
-    // Object triggers: PRESS A (front tile, with talkOver support inside ObjectManager)
-    if (!WORLD_BUSY && !AUTO_WALKING && !TextBox.anyOpen() && window.ObjectManager) {
+    // Do not accept A-press interactions during suppression;
+    // this avoids instant re-trigger after closing a textbox.
+    if (!WORLD_BUSY && !AUTO_WALKING && !nowTextboxOpen && !INPUT_SUPPRESSED && window.ObjectManager) {
         const wantA = jp.pressed('a');
         if (wantA) {
             const p = Sprites.get('player');
             if (p) {
                 const cur = getPlayerTile();
                 if (cur) {
-                    const actions = ObjectManager.onPressA({ tx: cur.tx, ty: cur.ty, dir: p.facing });
+                    // const actions = ObjectManager.onPressA({ tx: cur.tx, ty: cur.ty, dir: p.facing });
+                    // World-aware onPressA
+                    const actions = (window.World && typeof World.onPressA === 'function')
+                        ? World.onPressA({ tx: cur.tx, ty: cur.ty, dir: p.facing })
+                        : (window.ObjectManager ? ObjectManager.onPressA({ tx: cur.tx, ty: cur.ty, dir: p.facing }) : []);
                     if (actions && actions.length > 0) {
                         runActions(actions);
                     }
@@ -316,8 +406,8 @@ function update(dt){
         }
     }
 
-    // Object triggers: BUMP (rising edge of bumping flag)
-    if (!WORLD_BUSY && !AUTO_WALKING && window.ObjectManager) {
+    // Ignore bump triggers during suppression to keep behavior consistent
+    if (!WORLD_BUSY && !AUTO_WALKING && !INPUT_SUPPRESSED && window.ObjectManager) {
         const p = Sprites.get('player');
         if (p) {
             const justBumped = !!p.bumping && !_wasBumping;
@@ -326,7 +416,11 @@ function update(dt){
             if (justBumped) {
                 const cur = getPlayerTile();
                 if (cur) {
-                    const actions = ObjectManager.onBump({ tx: cur.tx, ty: cur.ty, dir: p.facing });
+                    // const actions = ObjectManager.onBump({ tx: cur.tx, ty: cur.ty, dir: p.facing });
+                    // World-aware onBump
+                    const actions = (window.World && typeof World.onBump === 'function')
+                        ? World.onBump({ tx: cur.tx, ty: cur.ty, dir: p.facing })
+                        : (window.ObjectManager ? ObjectManager.onBump({ tx: cur.tx, ty: cur.ty, dir: p.facing }) : []);
                     if (actions && actions.length > 0) {
                         runActions(actions);
                     }

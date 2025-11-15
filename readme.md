@@ -24,8 +24,6 @@ I'm not insane.  *You're* insane.
     - Sprites are generally 16x16 px images and are separate files
     - Maps are rendered solely within `<div>` elements!
 
-
-
 3. Sprites
     - Sprites utilize sprite sheets, one sheet per specific object and state (item balls, player sprite, flying sprite, NPCs, all separate files)
     - Animation system utilizes traditional logic (one side, up/down, flip sprites for additional 'frames' or alternate facing), a more modernized approach similar to RPG Maker, and more.
@@ -38,8 +36,15 @@ I'm not insane.  *You're* insane.
 - In the map editor, blocks aren't able to be created; the map currently only works with squaress (the 4x4 tile squares, not the 8x8 tile blocks).
 - In the map editor, resizing the map will clear everything without warning.
 - In the map editor, encounter tables cannot yet be defined (just placeholder and html scaffolding).
+- When loading maps and crossing into a new map, there's a momentary hitch that resets movement.  It looks similar to the few-frame lag that happens in the original game, but due to a different reason - it's to circumvent a softlock situation where if holding the movement button during a map poll, the player will continue moving in the held direction even after releasing said direction until walking into a void square.  Until a more accurate fix is discovered, this will remain, as the gameplay feels solid enough as-is.
+- Walk-over triggers can also be triggered with a press of the "A" button.
+- Triggers that should only occur on "A" press trigger when bumping.
 
 ## Changelog:
+### v0.0.24
+- Added objects to test interacting in-world, ensured a delay happens just after closing a message box to prevent interaction loop.  (Previously, pressing "A" to close a textbox immediately re-opened it).
+- Added seamless map loading!  You can now walk from Pallet Town into Route 1, and back!
+
 ### v0.0.20
 - Adjusted the starting map the the player's room to align with the original game.
 - Updated collision detection to account for movement state (walk, surf, bike).  Water squares behave like walls when not in surf mode)

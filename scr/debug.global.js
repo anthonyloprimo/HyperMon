@@ -54,6 +54,14 @@
 
         const lines = [];
         lines.push(`PLAYER px=(${pad3(player.x)},${pad3(player.y)}) facing=${player.facing}${player.flip ? " [flip]" : ""}`);
+        // Show current map id between PLAYER and TILE
+        var mapId = (window.World && typeof World.currentMap === 'function' && World.currentMap())
+            ? String(World.currentMap().id || '')
+            : '';
+        if (mapId) {
+            // Insert a MAP: line; keep formatting consistent
+            lines.push("MAP:   " + mapId);
+        }
         lines.push(`TILE   =(${tx},${ty})  FRONT=(${fx},${fy})`);
         lines.push("");
         lines.push(formatSquare("CUR ", tx, ty, cur));
@@ -75,9 +83,9 @@
         const tiles = Array.isArray(sq.tiles) ? sq.tiles.map(hexTile).join(" ") : "";
         return (
 `${label}@(${tx},${ty}):
-  solid=${!!f.solid}  ledge=${f.ledge ?? "null"}  surface=${f.surface ?? "normal"}  talkOver=${!!f.talkOver}
-  tiles=[${tiles}]
-  tags=[${tags}]`
+solid=${!!f.solid}  ledge=${f.ledge ?? "null"}  surface=${f.surface ?? "normal"}  talkOver=${!!f.talkOver}
+tiles=[${tiles}]
+tags=[${tags}]`
         );
     }
 

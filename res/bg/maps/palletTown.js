@@ -660,6 +660,30 @@ var palletTown = {
         "to": { "mapId": "playerHouse", "x": 2, "y": 7 },
         "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
         "sfx": "SFX_GO_INSIDE"
+    },
+    {
+        "name": "signPlayerHouse",
+        "kind": "sign",
+        "x": 3, "y": 5,
+        "script": "SIGN_PLAYERHOUSE"
+    },
+    {
+        "name": "signRivalHouse",
+        "kind": "sign",
+        "x": 11, "y": 5,
+        "script": "SIGN_RIVALHOUSE"
+    },
+    {
+        "name": "signOaksLab",
+        "kind": "sign",
+        "x": 13, "y": 13,
+        "script": "SIGN_OAKSLABHOUSE"
+    },
+    {
+        "name": "signPalletTownSign",
+        "kind": "sign",
+        "x": 7, "y": 9,
+        "script": "SIGN_PALLET"
     }
 ],
 
