@@ -2,7 +2,7 @@ var palletTown = {
     "mapName": "palletTown",
     "schema": 1,
 
-    "bgm": "",
+    "bgm": "res/bgm/04 Pallet Town.mp3",
 
     "tileset": {
     "image": "res/bg/tilesOutdoorA.png",
@@ -662,6 +662,28 @@ var palletTown = {
         "sfx": "SFX_GO_INSIDE"
     },
     {
+        "name": "warpPalletToRivalHouse",
+        "kind": "warp",
+        "x": 13, "y": 5,
+        "sprite": { },
+        "trigger": { "onStep": true },
+        "walkThrough": true,
+        "to": { "mapId": "rivalHouse", "x": 2, "y": 7 },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_INSIDE"
+    },
+    {
+        "name": "warpPalletToOaksLab",
+        "kind": "warp",
+        "x": 12, "y": 11,
+        "sprite": { },
+        "trigger": { "onStep": true },
+        "walkThrough": true,
+        "to": { "mapId": "oaksLab", "x": 4, "y": 11 },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_INSIDE"
+    },
+    {
         "name": "signPlayerHouse",
         "kind": "sign",
         "x": 3, "y": 5,
@@ -677,7 +699,7 @@ var palletTown = {
         "name": "signOaksLab",
         "kind": "sign",
         "x": 13, "y": 13,
-        "script": "SIGN_OAKSLABHOUSE"
+        "script": "SIGN_OAKSLAB"
     },
     {
         "name": "signPalletTownSign",

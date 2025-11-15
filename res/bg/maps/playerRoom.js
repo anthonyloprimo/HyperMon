@@ -2,7 +2,7 @@ var playerRoom = {
     "mapName": "playerRoom",
     "schema": 1,
 
-    "bgm": "",
+    "bgm": "res/bgm/04 Pallet Town.mp3",
 
     "tileset": {
     "image": "res/bg/tilesIndoorsA.png",
@@ -293,6 +293,18 @@ var playerRoom = {
         "to": { "mapId": "playerHouse", "x": 7, "y": 1 },
         "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
         "sfx": "SFX_GO_OUTSIDE"
+    },
+    {
+        "name": "pc",
+        "kind": "sign",
+        "x": 0, "y": 1,
+        "script": "PC_BROKEN"
+    },
+    {
+        "name": "snes",
+        "kind": "sign",
+        "x": 3, "y": 5,
+        "script": "SNES_TEXT"
     }
 ],
 

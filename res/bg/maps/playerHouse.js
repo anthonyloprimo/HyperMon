@@ -2,7 +2,7 @@ var playerHouse = {
     "mapName": "playerHouse",
     "schema": 1,
 
-    "bgm": "",
+    "bgm": "res/bgm/04 Pallet Town.mp3",
 
     "tileset": {
     "image": "res/bg/tilesIndoorsA.png",
@@ -235,12 +235,12 @@ var playerHouse = {
     "ids": [
         10,10, 2, 4, 2, 4, 2, 4,
         11,11, 1, 5, 1, 1, 1,12,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 3, 6, 7, 3, 1, 1,
-        1, 1, 3, 8, 9, 3, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1,14,14, 1, 1, 1, 1
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 3, 6, 7, 3, 1, 1,
+         1, 1, 3, 8, 9, 3, 1, 1,
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1,14,14, 1, 1, 1, 1
     ]
 ,
 
@@ -287,8 +287,25 @@ var playerHouse = {
         "to": { "mapId": "playerRoom", "x": 7, "y": 1 },
         "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
         "sfx": "SFX_GO_OUTSIDE"
+    },
+    {
+        "name": "tv",
+        "kind": "sign",
+        "x": 3, "y": 1,
+        "script": "TV_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 0, "y": 1,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 1, "y": 1,
+        "script": "BOOKCASE_TEXT"
     }
-
 ],
 
 "encounters": {

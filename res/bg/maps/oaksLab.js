@@ -2,7 +2,7 @@ var oaksLab = {
     "mapName": "oaksLab",
     "schema": 1,
 
-    "bgm": "",
+    "bgm": "res/bgm/07. Pokémon Lab.mp3",
 
     "tileset": {
     "image": "res/bg/tilesIndoorsI.png",
@@ -233,19 +233,19 @@ var oaksLab = {
     "height": 13,
 
     "ids": [
-        2, 2, 2, 2, 3, 3, 8, 8, 8, 8,
-        13, 14, 4, 5, 1, 1, 9, 9, 9, 9,
-        6, 7, 6, 7, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 4, 10, 5, 1,
-        1, 1, 1, 1, 1, 1, 6, 11, 7, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        8, 8, 8, 8, 1, 1, 8, 8, 8, 8,
-        9, 9, 9, 9, 1, 1, 9, 9, 9, 9,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 1, 1, 12, 12, 1, 1, 1, 1,
-        0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+         2, 2, 2, 2, 3, 3, 8, 8, 8, 8,
+        13,14, 4, 5, 1, 1, 9, 9, 9, 9,
+         6, 7, 6, 7, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 1, 1, 1, 4,10, 5, 1,
+         1, 1, 1, 1, 1, 1, 6,11, 7, 1,
+         1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+         8, 8, 8, 8, 1, 1, 8, 8, 8, 8,
+         9, 9, 9, 9, 1, 1, 9, 9, 9, 9,
+         1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 1,12,12, 1, 1, 1, 1,
+         0, 0, 0, 0, 0, 0, 0, 0, 0, 0
     ]
 ,
 
@@ -259,7 +259,126 @@ var oaksLab = {
 }
 },
 
-"objects": [],
+"objects": [
+    {
+        "name": "warpOaksLabToPalletL",
+        "kind": "warp",
+        "x": 4, "y": 11,
+        "sprite": { },
+        "trigger": { "onBump": true },
+        "walkThrough": false,
+        "to": { "mapId": "palletTown", "x": 12, "y": 11, "facing": "down", "autoWalk": true },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_OUTSIDE"
+    },
+    {
+        "name": "warpOaksLabToPalletR",
+        "kind": "warp",
+        "x": 5, "y": 11,
+        "sprite": { },
+        "trigger": { "onBump": true },
+        "walkThrough": false,
+        "to": { "mapId": "palletTown", "x": 12, "y": 11, "facing": "down", "autoWalk": true },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_OUTSIDE"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 6, "y": 1,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 7, "y": 1,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 8, "y": 1,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 9, "y": 1,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 0, "y": 7,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 1, "y": 7,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 2, "y": 7,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 3, "y": 7,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 6, "y": 7,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 7, "y": 7,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 8, "y": 7,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 9, "y": 7,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "posterL",
+        "kind": "sign",
+        "x": 4, "y": 0,
+        "script": "POSTERL_TEXT"
+    },
+    {
+        "name": "posterR",
+        "kind": "sign",
+        "x": 5, "y": 0,
+        "script": "POSTERR_TEXT"
+    },
+    {
+        "name": "oaksPC",
+        "kind": "sign",
+        "x": 0, "y": 1,
+        "script": "PC_OAK"
+    },
+    {
+        "name": "oaksPC",
+        "kind": "sign",
+        "x": 1, "y": 1,
+        "script": "PC_OAK"
+    },
+],
 
 "encounters": {
     "land": [],

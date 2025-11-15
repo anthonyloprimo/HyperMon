@@ -185,72 +185,10 @@
             requestAnimationFrame(step);
         }
  
-    // async function startBgm(opts) {
-    //     const { id, fade = DEFAULT_BGM_FADE, loop = DEFAULT_BGM_LOOP, once = false, returnTo = null } = opts;
-    //     if (!id) return;
-    //     const url = BGM_MANIFEST[id];
-    //     if (!url) return;
- 
-    //     // Prepare next media
-    //     const media = makeMedia(url, !once && loop);
-    //     // const { node, gain, ok } = connectMedia(media);
-    //     // gain.gain.value = 0.0;
-    //     const useGraph = location.protocol !== "file:";
-    //     const { node, gain, ok } = useGraph ? connectMedia(media) : { node: null, gain: null, ok: false };
-    //     if (ok) { gain.gain.value = 0.0; }
- 
-    //     // Handle ONCE: push current on stack
-    //     if (once) {
-    //         if (currentBgm && currentBgm.id) {
-    //             bgmStack.push({ id: currentBgm.id, loop: currentBgm.media?.loop ?? DEFAULT_BGM_LOOP });
-    //         } else {
-    //             bgmStack.push(null);
-    //         }
-    //     }
-        
-    //     // Swap: stop current
-    //     await stopBgmInternal({ fade }); // fade-out old track
- 
-    //     // Become current
-    //     currentBgm = { id, media, node, gain, loop: !once && loop, once, returnTo };
- 
-    //     // If once, restore behavior on ended
-    //     if (once) { media.addEventListener("ended", () => { restoreAfterOnce(); }, { once: true }); }
- 
-    //     // Play (ensure context running)
-    //     if (ctx.state !== "running") { try { await ctx.resume(); } catch (e) {} }
-    //     media.currentTime = 0;
- 
-    //     // Set starting loudness for chosen path and then play...
-    //     if (ok) {
-    //         gain.gain.value = 1.0;
-    //         media.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
-    //         // fadeTo(gain, 1.0, FADE_IN_MS);  // No fade in for playing
-    //     } else {
-    //         media.volume = 1.0;
-    //         media.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
-    //         fadeElementVolume(media, 1.0, FADE_IN_MS);
-    //     }
- 
-    //     // Fade in
-    //     // fadeTo(gain, 1.0, FADE_IN_MS);
-    //     media.volume = ok ? 1.0 : 1.0;
-    //     if (ok) fadeTo(gain, 1.0, FADE_IN_MS);
-    //     else fadeElementVolume(media, 1.0, FADE_IN_MS);
-    // }
     async function startBgm(opts) {
-        const { 
-            id, 
-            url: explicitUrl = null, 
-            fade = DEFAULT_BGM_FADE, 
-            fadeInMs = FADE_IN_MS, 
-            loop = DEFAULT_BGM_LOOP, 
-            once = false, 
-            returnTo = null 
-        } = opts;
-        const key = id || explicitUrl;
-        if (!key) return;
-        const url = explicitUrl || BGM_MANIFEST[key] || key; // support manifest ids or raw paths
+        const { id, fade = DEFAULT_BGM_FADE, loop = DEFAULT_BGM_LOOP, once = false, returnTo = null } = opts;
+        if (!id) return;
+        const url = BGM_MANIFEST[id];
         if (!url) return;
  
         // Prepare next media
@@ -274,7 +212,7 @@
         await stopBgmInternal({ fade }); // fade-out old track
  
         // Become current
-        currentBgm = { id: key, media, node, gain, loop: !once && loop, once, returnTo };
+        currentBgm = { id, media, node, gain, loop: !once && loop, once, returnTo };
  
         // If once, restore behavior on ended
         if (once) { media.addEventListener("ended", () => { restoreAfterOnce(); }, { once: true }); }
@@ -295,23 +233,19 @@
         }
  
         // Fade in
-        if (fadeInMs > 0) {
-            if (ok) fadeTo(gain, 1.0, fadeInMs);
-            else fadeElementVolume(media, 1.0, fadeInMs);
-        } else {
-            if (ok) gain.gain.volume = 1.0;
-            else media.volume = 1.0;
-        }
+        // fadeTo(gain, 1.0, FADE_IN_MS);
+        media.volume = ok ? 1.0 : 1.0;
+        if (ok) fadeTo(gain, 1.0, FADE_IN_MS);
+        else fadeElementVolume(media, 1.0, FADE_IN_MS);
     }
  
-    async function stopBgmInternal({ fade = DEFAULT_BGM_FADE, fadeMs = FADE_OUT_MS } = {}) {
+    async function stopBgmInternal({ fade = DEFAULT_BGM_FADE } = {}) {
         if (!currentBgm) return;
         const { media, gain } = currentBgm;
         if (fade) {
-            const dur = Number.isFinite(fadeMs) ? Math.max(0, fadeMs) : FADE_OUT_MS;
-            if (gain) fadeTo(gain, 0.0, dur);
-            else fadeElementVolume(media, 0.0, dur);
-            await new Promise(r => setTimeout(r, dur));
+            if (gain) fadeTo(gain, 0.0, FADE_OUT_MS);
+            else fadeElementVolume(media, 0.0, FADE_OUT_MS);
+            await new Promise(r => setTimeout(r, FADE_OUT_MS));
         }
         try { media.pause(); } catch (e) {}
         try { media.volume = 0.0; } catch (e) {}
@@ -373,24 +307,15 @@
         },
  
         // BGM control; never blocks the textbox
-        onBgm: ({ id, url, fade, fadeMs, fadeInMs, loop, once, returnTo, stop }) => {
+        onBgm: ({ id, fade, loop, once, returnTo, stop }) => {
             if (stop) {
-                stopBgmInternal({ fade: !!fade, fadeMs });
+                stopBgmInternal({ fade: !!fade });
                 return;
             }
             // Defaults when flags omitted:
             const wantLoop = (loop != null) ? !!loop : DEFAULT_BGM_LOOP;
             const wantFade = (fade != null) ? !!fade : DEFAULT_BGM_FADE;
-            const fadeIn = (fadeInMs != null) ? fadeInMs : FADE_IN_MS;
-            startBgm({ 
-                id, 
-                url, 
-                fade: wantFade, 
-                fadeInMs: fadeIn, 
-                loop: wantLoop, 
-                once: !!once, 
-                returnTo: returnTo || null 
-            });
+            startBgm({ id, fade: wantFade, loop: wantLoop, once: !!once, returnTo: returnTo || null });
         }
     };
  

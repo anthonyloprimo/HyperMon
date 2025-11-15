@@ -37,23 +37,31 @@ I'm not insane.  *You're* insane.
 - In the map editor, resizing the map will clear everything without warning.
 - In the map editor, encounter tables cannot yet be defined (just placeholder and html scaffolding).
 - When loading maps and crossing into a new map, there's a momentary hitch that resets movement.  It looks similar to the few-frame lag that happens in the original game, but due to a different reason - it's to circumvent a softlock situation where if holding the movement button during a map poll, the player will continue moving in the held direction even after releasing said direction until walking into a void square.  Until a more accurate fix is discovered, this will remain, as the gameplay feels solid enough as-is.
-- Walk-over triggers can also be triggered with a press of the "A" button.
-- Triggers that should only occur on "A" press trigger when bumping.
+- There are no NPCs
+- The PC in the player's house functions as a sign as no other object type is available for interactive objects like PCs.
+- Music transitions, specifically the fade-out part of it is too fast.
+- The textbox should not play a sound when dismissing a textbox, only when advancing text.
+- A command needs to be added to clear the text box and start writing new text, as if calling a new textbox.
 
 ## Changelog:
-### v0.0.24
+### v0.0.39
 - Added objects to test interacting in-world, ensured a delay happens just after closing a message box to prevent interaction loop.  (Previously, pressing "A" to close a textbox immediately re-opened it).
 - Added seamless map loading!  You can now walk from Pallet Town into Route 1, and back!
+- Fixed a bug where walk-over triggers could be toggled with a press of the "A" button.
+- Fixed a bug where triggers that should only fire on "A" press could be triggered by bumping against it.
+- Added map-defined BGM playback.  The fade-out and BGM transition code has been already there
+- Added signs to various maps
+- Added Pallet Town, Player's House, Rival's House, Oak's Lab, Route 1 maps
 
-### v0.0.20
+### v0.0.32
 - Adjusted the starting map the the player's room to align with the original game.
 - Updated collision detection to account for movement state (walk, surf, bike).  Water squares behave like walls when not in surf mode)
 
-### v0.0.16
+### v0.0.30
 - Added warp objects and flags to map handling.  So far just warps are working properly.
 - When autowalk is enabled for a warp, the player will move one square in the direction they are facing, and the player input is locked to prevent interrupting the auto-walk sequence.
 
-### v0.0.14
+### v0.0.28
 - Fixed a bug where the player didn't animate when walking correctly.
 - Fixed a bug where the player wouldn't animate when bumping against a solid object or square.
 - Addded the ability to save and create animated tiles to the map editor.
@@ -65,18 +73,18 @@ I'm not insane.  *You're* insane.
 - Music preview for the map editor.
 - Added file loading.
 
-### v0.0.10
+### v0.0.17
 - Added initial collision logic for player.
 - Added ledge hopping.
 - Created the map editor
 
-### v0.0.8
+### v0.0.14
 - Fixed a bug where background tiles (possibly other visual assets as well) would sometimes appear with interpolation despite it being disabled.  Conflicting CSS rules appear to have been causing a race condition that sometimes triggered it.  Should be resolved.
 - Added player object that moves around in a manner that's more Gen II-esque.
 - Added camera system.  Refined the CSS which prevented the full visible area from being displayed in the viewport.
 - Made - and fixed - a bug where the player sprite jumps all over the place.  That doesn't happen now.
 
-### v0.0.7
+### v0.0.10
 - Added mapLoader.global.js for loading and parsing maps.
 - Modified tilesets to account for fitting multiple backgrounds in a single div
 - Added map rendering system

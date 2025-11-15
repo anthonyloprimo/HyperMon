@@ -66,6 +66,7 @@
         lines.push("");
         lines.push(formatSquare("CUR ", tx, ty, cur));
         lines.push(formatSquare("FWD ", fx, fy, front));
+        lines.push(`________________________________\nProject HyperMon v00.00.39\nCONTROLS:\nD-Pad = ARROW KEYS\nA = Z | Start = ENTER\nB = X | Select = SHIFT`);
 
         el.textContent = lines.join("\n");
     }

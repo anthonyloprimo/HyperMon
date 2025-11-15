@@ -18,6 +18,11 @@
     // Utility: clamp to integer
     function toInt(n) { return Number.isFinite(n) ? Math.trunc(n) : 0; }
 
+    // Optional Flags helper reads so world-trigger logic matches ObjectManager semantics.
+    function hasFlag(key) {
+        return (g.Flags && typeof g.Flags.has === "function") ? g.Flags.has(key) : false;
+    }
+
     // Build per-map object index (safe for OOB coords; negative tiles allowed)
     function _indexMapObjects(map) {
         const byTile = new Map();
@@ -110,6 +115,7 @@
 
     // Public: attach a new current map (keep it resident, preload neighbors)
     async function attachMap(map) {
+        console.log(map);
         if (!map) return;
         _maps.set(map.id, map);
         _current = map;
@@ -235,12 +241,12 @@
         // owning map first
         if (own) {
             const list = _objectsAt(own.map, own.tx, own.ty);
-            const act = _firstActions(list);
+            const act = _firstActions(list, "step", own.map);
             if (act.length > 0) return act;
         }
         // fallback: OOB objects on current map at the original coords
         const listCur = _objectsAt(_current, tx, ty);
-        return _firstActions(listCur);
+        return _firstActions(listCur, "step", _current);
     }
 
     function onPressA(ctx) {
@@ -276,11 +282,11 @@
             const own = resolveOwner(qx, qy);
             if (own) {
                 const list = _objectsAt(own.map, own.tx, own.ty);
-                const act = _firstActions(list);
+                const act = _firstActions(list, "pressA", own.map);
                 if (act.length > 0) return act;
             }
             const listCur = _objectsAt(_current, qx, qy);
-            const act2 = _firstActions(listCur);
+            const act2 = _firstActions(listCur, "pressA", _current);
             if (act2.length > 0) return act2;
         }
         return [];
@@ -291,35 +297,66 @@
         const tx = Math.trunc(ctx.tx), ty = Math.trunc(ctx.ty);
         const dir = String(ctx.dir || ctx.facing || "down");
 
-        const stepFn = (g.Collision && typeof g.Collision.step === "function")
-            ? g.Collision.step
-            : ((x, y, d) => {
-                switch (String(d).toLowerCase()) {
-                    case "up": case "n": return [x, y - 1];
-                    case "down": case "s": return [x, y + 1];
-                    case "left": case "w": return [x - 1, y];
-                    case "right": case "e": return [x + 1, y];
-                    default: return [x, y];
-                }
-            });
-
-        const [fx, fy] = stepFn(tx, ty, dir);
-
-        const own = resolveOwner(fx, fy);
-        if (own) {
-            const list = _objectsAt(own.map, own.tx, own.ty);
-            const act = _firstActions(list);
-            if (act.length > 0) return act;
+        const candidates = [];
+        if (g.Collision && typeof g.Collision.step === "function") {
+            const front = g.Collision.step(tx, ty, dir);
+            candidates.push([front[0], front[1]]);
         }
-        const listCur = _objectsAt(_current, fx, fy);
-        return _firstActions(listCur);
+        candidates.push([tx, ty]);
+
+        for (let i = 0; i < candidates.length; i++) {
+            const [qx, qy] = candidates[i];
+            const own = resolveOwner(qx, qy);
+            if (own) {
+                const list = _objectsAt(own.map, own.tx, own.ty);
+                const act = _firstActions(list, "bump", own.map);
+                if (act.length > 0) return act;
+            }
+            const listCur = _objectsAt(_current, qx, qy);
+            const act2 = _firstActions(listCur, "bump", _current);
+            if (act2.length > 0) return act2;
+        }
+        return [];
+    }
+
+    // Mirror ObjectManager trigger defaults so world-aware queries respect author intent.
+    function matchesTrigger(obj, kind) {
+        const trg = obj.trigger || null;
+        if (trg && typeof trg === "object") {
+            if (kind === "step")   return !!trg.onStep;
+            if (kind === "pressA") return !!trg.onPressA;
+            if (kind === "bump")   return !!trg.onBump;
+            return false;
+        }
+        if (obj.kind === "warp") return (kind === "step");
+        if (obj.kind === "npc" || obj.kind === "sign" || obj.kind === "item") {
+            return (kind === "pressA");
+        }
+        return false;
+    }
+
+    // Gate requires/once flags using the owning map id (falls back to current map).
+    function isFlagGateOpen(obj, mapCtx) {
+        if (Array.isArray(obj.requires) && obj.requires.length > 0) {
+            for (let i = 0; i < obj.requires.length; i++) {
+                if (!hasFlag(String(obj.requires[i]))) return false;
+            }
+        }
+        if (obj.once) {
+            const mapId = (mapCtx && mapCtx.id) ? String(mapCtx.id) : String((_current && _current.id) || "");
+            const usedKey = `obj:${mapId}:${obj.id}:used`;
+            if (hasFlag(usedKey)) return false;
+        }
+        return true;
     }
 
     // Build first action list using existing ObjectManager semantics
-    function _firstActions(list) {
+    function _firstActions(list, kind, mapCtx) {
         if (!Array.isArray(list) || list.length === 0) return [];
         for (let i = 0; i < list.length; i++) {
             const obj = list[i];
+            if (!matchesTrigger(obj, kind)) continue;
+            if (!isFlagGateOpen(obj, mapCtx)) continue;
             // Borrow ObjectManager’s action building logic by replicating minimal subset here
             if (obj.kind === "warp" && obj.to && obj.to.mapId) {
                 return [{
@@ -410,12 +447,13 @@
 
     // Internal: switch BGM according to the map’s bgm field and policy
     function _maybeSwitchBgmFor(map) {
+        console.log(`Maybe switch map BGM for "${map.bgm}"`)
         const next = String(map.bgm || "");
         if (!_audioBgmId) {
             _audioBgmId = next || null;
-            if (next && g.Audio && typeof g.Audio.playBgm === "function") {
-                // play immediately on first attach
-                g.Audio.playBgm(next, { fadeMs: 0 });
+            if (next && window.AudioHooks && typeof AudioHooks.onBgm === "function") {
+                // first attach play immediately with no fade in
+                AudioHooks.onBgm({ url: next, fade: false, fadeInMs: 0, loop: true });
             }
             return;
         }
@@ -423,12 +461,12 @@
         if (next && _audioBgmId && next === _audioBgmId) return;
 
         // Different track: fade out current, play next immediately (no fade-in)
-        if (g.Audio) {
-            if (typeof g.Audio.fadeOutBgm === "function") {
-                g.Audio.fadeOutBgm(250);
-            }
-            if (next && typeof g.Audio.playBgm === "function") {
-                g.Audio.playBgm(next, { fadeMs: 0 });
+        if (window.AudioHooks && typeof AudioHooks.onBgm === "function") {
+            if (next) {
+                AudioHooks.onBgm({ url: next, fade: true, fadeMs: 250, fadeInMs: 0, loop: true });
+            } else {
+                AudioHooks.onBgm({ stop: true, fade: true, fadeMs: 250 });
+
             }
         }
         _audioBgmId = next || null;

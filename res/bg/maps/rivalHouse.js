@@ -2,7 +2,7 @@ var rivalHouse = {
     "mapName": "rivalHouse",
     "schema": 1,
 
-    "bgm": "",
+    "bgm": "res/bgm/04 Pallet Town.mp3",
 
     "tileset": {
     "image": "res/bg/tilesIndoorsB.png",
@@ -60,9 +60,9 @@ var rivalHouse = {
         {
             "tiles": [ "0x02", "0x03", "0x12", "0x13" ],
             "collision": {
-                "solid": true,
+                "solid": false,
                 "ledge": null,
-                "surface": "wall",
+                "surface": "normal",
                 "talkOver": false
             },
             "attributes": {
@@ -261,14 +261,14 @@ var rivalHouse = {
     "height": 8,
 
     "ids": [
-        12, 12, 2, 5, 2, 4, 2, 10,
-        13, 13, 1, 1, 1, 1, 1, 11,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        1, 1, 3, 6, 7, 3, 1, 1,
-        1, 1, 3, 8, 9, 3, 1, 1,
-        1, 1, 1, 1, 1, 1, 1, 1,
-        15, 1, 1, 1, 1, 1, 1, 15,
-        16, 1, 14, 14, 1, 1, 1, 16
+        12,12, 2, 5, 2, 4, 2,10,
+        13,13, 1, 1, 1, 1, 1,11,
+         1, 1, 1, 1, 1, 1, 1, 1,
+         1, 1, 3, 6, 7, 3, 1, 1,
+         1, 1, 3, 8, 9, 3, 1, 1,
+         1, 1, 1, 1, 1, 1, 1, 1,
+        15, 1, 1, 1, 1, 1, 1,15,
+        16, 1,14,14, 1, 1, 1,16
     ]
 ,
 
@@ -282,7 +282,54 @@ var rivalHouse = {
 }
 },
 
-"objects": [],
+"objects": [
+    {
+        "name": "warpRivalHouseToPalletL",
+        "kind": "warp",
+        "x": 2, "y": 8,
+        "sprite": { },
+        "trigger": { "onBump": true },
+        "walkThrough": false,
+        "to": { "mapId": "palletTown", "x": 13, "y": 5, "facing": "down", "autoWalk": true },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_OUTSIDE"
+    },
+    {
+        "name": "warpRivalHouseToPalletR",
+        "kind": "warp",
+        "x": 3, "y": 8,
+        "sprite": { },
+        "trigger": { "onBump": true },
+        "walkThrough": false,
+        "to": { "mapId": "palletTown", "x": 13, "y": 5, "facing": "down", "autoWalk": true },
+        "transition": { "out": "gen1ToBlack", "in": "gen1FromBlack" },
+        "sfx": "SFX_GO_OUTSIDE"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 0, "y": 1,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 1, "y": 1,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "bookcase",
+        "kind": "sign",
+        "x": 7, "y": 1,
+        "script": "BOOKCASE_TEXT"
+    },
+    {
+        "name": "townMap",
+        "kind": "sign",
+        "x": 3, "y": 0,
+        "script": "TOWNMAP_TEXT"
+    },
+],
 
 "encounters": {
     "land": [],

@@ -498,7 +498,6 @@
     // -----------------------
     // Assembly
     // -----------------------
-
     function buildMapData(raw) {
         const diagnostics = [];
         dgroup(`MapLoader.parse – ${String(raw.mapName || "(unnamed)")}`);
@@ -523,7 +522,10 @@
         // 6) Encounters
         const encounters = compileEncounters(raw.encounters || {}, diagnostics);
 
-        // 7) Final assembly
+        // 7) Audio metadata
+        const bgm = (typeof raw.bgm === "string") ? raw.bgm.trim() : "";
+
+        // 8) Final assembly
         const map = {
             id: String(raw.mapName || ""),
             version: raw.schema ?? 1,
@@ -531,6 +533,7 @@
             squares,
             blocks,
             placement: gridInfo.placement,
+            bgm,
             grid: {
                 squares: gridInfo.squareGrid,
                 blocks: gridInfo.blockGrid
