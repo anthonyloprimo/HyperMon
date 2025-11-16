@@ -115,7 +115,7 @@
             box7.show(`PS: PROF.OAK, please visit us!\n...`)
             box6.show(`POKeMON LEAGUE HQ INDIGO PLATEAU`)
             box5.show(`Bring your best POKeMON and see how you rate as a trainer!`)
-            box4.show(`The elite trainers of POKeMON LEAGUE are ready to take om all comers!`)
+            box4.show(`The elite trainers of POKeMON LEAGUE are ready to take on all comers!`)
             box3.show(`Calling all POKeMON trainers!`)
             box2.show(`...`)
             box1.show(`There's an e-mail message here!`)
