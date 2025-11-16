@@ -100,9 +100,41 @@ html, body {
     }
         .msgBox p { margin: 0; white-space: pre-wrap; }
 
+    .githubLinks {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+    }
+        .repoBtn {
+            display: inline-block;
+            background-color: #FFFFFF55;
+            color: #FFFFFFBB;
+            text-shadow: 0 1px #00000055;
+            box-shadow: 0 2px 4px 0 #00000077;
+            border-radius: 4px;
+            padding: 6px 8px 8px;
+        }
+            .repoBtn:hover {
+                background-color: #FFFFFF99;
+                color: #FFFFFF;
+            }
+
+        .authorBtn {
+            display: inline-block;
+            color: #FFFFFFBB;
+            text-shadow: 0 1px #00000055;
+            padding: 4px 0 0 12px;
+        }
+            .authorBtn:hover {
+                color: #FFFFFF;
+            }
 </style>
 </head>
 <body>
+<div class="githubLinks">
+    <a class="repoBtn" href="https://github.com/anthonyloprimo/HyperMon" target="_blank">HYPERMON v0.0.39</a><br>
+    <a class="authorBtn" href="https://github.com/anthonyloprimo" target="_blank">by anthonyloprimo</a>
+</div>
 <div id="gameContainer">
     <div id="gameRoot">
         <div id="layer-bg"></div>
@@ -167,5 +199,6 @@ html, body {
 <script src="scr/debug.global.js"></script>
 
 <script src="scr/main.js"></script>
+
 </body>
 </html>
