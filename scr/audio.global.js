@@ -67,13 +67,17 @@
     const DEFAULT_BGM_FADE = false;
  
     // Fade timings (ms)
-    const FADE_OUT_MS = 500;
-    const FADE_IN_MS  = 500;
+    const FADE_OUT_MS = 1000;
+    const FADE_IN_MS  = 0;
  
     // Web Audio setup
     const AudioContextCtor = (window.AudioContext || window.webkitAudioContext);
     const ctx = new AudioContextCtor();
     let unlocked = false;
+    const masterGain = ctx.createGain();
+    let masterVolume = 1.0;
+    masterGain.gain.value = masterVolume;
+    masterGain.connect(ctx.destination);
  
     function tryStartCurrentMedia() {
         if (currentBgm && currentBgm.media && currentBgm.media.paused) {
@@ -120,7 +124,7 @@
         const src = ctx.createBufferSource();
         src.buffer = buf;
         const gain = ctx.createGain();
-        src.connect(gain).connect(ctx.destination);
+        src.connect(gain).connect(masterGain);
         src.start(0);
         return { src, gain };
     }
@@ -131,6 +135,7 @@
         const url = SFX_MANIFEST[id];
         if (!url) return null;
         const el = new Audio(url);
+        el.volume = masterVolume;
         el.preload = "auto";
         el.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
         return el;
@@ -139,7 +144,10 @@
     // BGM: media element + gain for fade
     let currentBgm = null; // { id, media, node, gain, loop, once, returnTo }
     const bgmStack = [];   // stack for ONCE/restore (depth 1–2 is plenty)
- 
+    let bgmOpQueue = Promise.resolve(); // shared queue ensuring fade/start happen sequentially
+    let bgmTransitionActive = false;    // locks out redundant fade requests
+    let pendingBgmDescriptor = null;    // latest requested BGM descriptor (overwritten each map change)
+
     function makeMedia(url, loop) {
         const el = new Audio();
         el.src = url;
@@ -154,7 +162,7 @@
         try {
             const node = ctx.createMediaElementSource(el);
             const gain = ctx.createGain();
-            node.connect(gain).connect(ctx.destination);
+            node.connect(gain).connect(masterGain);
             return { node, gain };
         } catch (e) {
             // Fallback to plain HTMLAudio
@@ -238,6 +246,55 @@
     //     if (ok) fadeTo(gain, 1.0, FADE_IN_MS);
     //     else fadeElementVolume(media, 1.0, FADE_IN_MS);
     // }
+
+    function enqueueBgmTask(taskLabel, task) {
+        // Chain each task to avoid overlapping fades/plays when maps change rapidly.
+        bgmOpQueue = bgmOpQueue.then(() => task()).catch(err => {
+            console.error(`[Audio] BGM task "${taskLabel}" failed`, err);
+        });
+        return bgmOpQueue;
+    }
+
+    function queueStartBgm(opts) {
+        // Wrapper so everything that starts BGM goes through the serialized queue.
+        return enqueueBgmTask(`start:${opts.id || opts.url || "manual"}`, () => startBgm(opts));
+    }
+
+    function queueStopBgm(opts) {
+        // Wrapper so fade-outs respect ordering as well.
+        return enqueueBgmTask("stop", () => stopBgmInternal(opts));
+    }
+
+    function normalizeBgmDescriptor(raw) {
+        // Normalize descriptors so downstream logic can assume consistent fields.
+        if (!raw) return null;
+        if (typeof raw === "string") {
+            return { id: null, url: raw, loop: DEFAULT_BGM_LOOP, fadeInMs: FADE_IN_MS, once: false, returnTo: null };
+        }
+        const desc = Object.assign({}, raw);
+        if (!desc.id && !desc.url) return null;
+        if (desc.loop == null) desc.loop = DEFAULT_BGM_LOOP;
+        if (desc.fadeInMs == null) desc.fadeInMs = FADE_IN_MS;
+        desc.once = !!desc.once;
+        desc.returnTo = desc.returnTo || null;
+        return desc;
+    }
+
+    function startPendingBgmImmediately() {
+        // When no current BGM is active, jump straight to the pending track.
+        const next = pendingBgmDescriptor;
+        pendingBgmDescriptor = null;
+        if (!next) return;
+        queueStartBgm({
+            id: next.id,
+            url: next.url,
+            fade: false,
+            fadeInMs: next.fadeInMs,
+            loop: next.loop,
+            once: next.once,
+            returnTo: next.returnTo
+        });
+    }
     async function startBgm(opts) {
         const { 
             id, 
@@ -277,7 +334,11 @@
         currentBgm = { id: key, media, node, gain, loop: !once && loop, once, returnTo };
  
         // If once, restore behavior on ended
-        if (once) { media.addEventListener("ended", () => { restoreAfterOnce(); }, { once: true }); }
+        if (once) {
+            media.addEventListener("ended", () => {
+                enqueueBgmTask("restoreAfterOnce", () => restoreAfterOnce());
+            }, { once: true });
+        }
  
         // Play (ensure context running)
         if (ctx.state !== "running") { try { await ctx.resume(); } catch (e) {} }
@@ -285,22 +346,20 @@
  
         // Set starting loudness for chosen path and then play...
         if (ok) {
-            gain.gain.value = 1.0;
+            gain.gain.value = (fadeInMs > 0) ? 0.0 : 1.0;
             media.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
-            // fadeTo(gain, 1.0, FADE_IN_MS);  // No fade in for playing
         } else {
-            media.volume = 1.0;
+            media.volume = (fadeInMs > 0) ? 0.0 : masterVolume;
             media.play().catch(()=>{ /* ignore autoplay errors; unlock will handle */ });
-            fadeElementVolume(media, 1.0, FADE_IN_MS);
         }
- 
-        // Fade in
+
+        // Fade in toward current master volume if requested
         if (fadeInMs > 0) {
             if (ok) fadeTo(gain, 1.0, fadeInMs);
-            else fadeElementVolume(media, 1.0, fadeInMs);
+            else fadeElementVolume(media, masterVolume, fadeInMs);
         } else {
-            if (ok) gain.gain.volume = 1.0;
-            else media.volume = 1.0;
+            if (ok) gain.gain.value = 1.0;
+            else media.volume = masterVolume;
         }
     }
  
@@ -344,6 +403,24 @@
         }
     }
  
+    function setGlobalMasterVolume(value) {
+        const numeric = Number(value);
+        const vol = Number.isFinite(numeric) ? Math.max(0, Math.min(1, numeric)) : 0;
+        masterVolume = vol;
+        masterGain.gain.value = masterVolume;
+        if (currentBgm && !currentBgm.gain && currentBgm.media) {
+            currentBgm.media.volume = masterVolume;
+        }
+    }
+
+    function getGlobalMasterVolume() {
+        return masterVolume;
+    }
+
+    function toggleMasterMute() {
+        setGlobalMasterVolume(masterVolume > 0 ? 0 : 1);
+    }
+
     // ---------- Public hooks for TextBox ----------
     g.AudioHooks = {
         // Non-blocking or blocking SFX (event-driven). Text engine passes resume() for blocking.
@@ -372,17 +449,38 @@
             });
         },
  
+        // Legacy BGM handler kept for reference
+        // onBgm: ({ id, url, fade, fadeMs, fadeInMs, loop, once, returnTo, stop }) => {
+        //     if (stop) {
+        //         stopBgmInternal({ fade: !!fade, fadeMs });
+        //         return;
+        //     }
+        //     // Defaults when flags omitted:
+        //     const wantLoop = (loop != null) ? !!loop : DEFAULT_BGM_LOOP;
+        //     const wantFade = (fade != null) ? !!fade : DEFAULT_BGM_FADE;
+        //     const fadeIn = (fadeInMs != null) ? fadeInMs : FADE_IN_MS;
+        //     startBgm({ 
+        //         id, 
+        //         url, 
+        //         fade: wantFade, 
+        //         fadeInMs: fadeIn, 
+        //         loop: wantLoop, 
+        //         once: !!once, 
+        //         returnTo: returnTo || null 
+        //     });
+        // },
+
         // BGM control; never blocks the textbox
         onBgm: ({ id, url, fade, fadeMs, fadeInMs, loop, once, returnTo, stop }) => {
             if (stop) {
-                stopBgmInternal({ fade: !!fade, fadeMs });
+                queueStopBgm({ fade: !!fade, fadeMs });
                 return;
             }
             // Defaults when flags omitted:
             const wantLoop = (loop != null) ? !!loop : DEFAULT_BGM_LOOP;
             const wantFade = (fade != null) ? !!fade : DEFAULT_BGM_FADE;
             const fadeIn = (fadeInMs != null) ? fadeInMs : FADE_IN_MS;
-            startBgm({ 
+            queueStartBgm({ 
                 id, 
                 url, 
                 fade: wantFade, 
@@ -390,6 +488,64 @@
                 loop: wantLoop, 
                 once: !!once, 
                 returnTo: returnTo || null 
+            });
+        },
+
+        // Legacy helper retained for reference
+        // fadeOutThenPlay: ({ fadeMs = FADE_OUT_MS, fadeInMs = FADE_IN_MS, resolveNext }) => {
+        //     if (typeof resolveNext !== "function") return;
+        //     if (bgmTransitionActive) return; // ignore duplicate requests until current transition completes
+        //     bgmTransitionActive = true;
+        //     enqueueBgmTask("fadeOutThenPlay", async () => {
+        //         try {
+        //             await stopBgmInternal({ fade: true, fadeMs });
+        //             const descriptor = resolveNext();
+        //             if (!descriptor) return; // remain silent if resolver says nothing
+        //             const normalized = (typeof descriptor === "string")
+        //                 ? { id: descriptor }
+        //                 : descriptor;
+        //             const loopNext = (normalized.loop != null) ? normalized.loop : DEFAULT_BGM_LOOP;
+        //             await startBgm({
+        //                 id: normalized.id,
+        //                 url: normalized.url,
+        //                 fade: false,
+        //                 fadeInMs,
+        //                 loop: loopNext,
+        //                 once: !!normalized.once,
+        //                 returnTo: normalized.returnTo || null
+        //             });
+        //         } finally {
+        //             bgmTransitionActive = false;
+        //         }
+        //     });
+        // },
+
+        // Map BGM requests funnel through here so only the most recent target matters.
+        requestMapBgm: (descriptor) => {
+            pendingBgmDescriptor = normalizeBgmDescriptor(descriptor);
+            // If no current BGM, immediately start the pending track (no fade needed).
+            if (!currentBgm && !bgmTransitionActive) {
+                startPendingBgmImmediately();
+                return;
+            }
+            if (bgmTransitionActive) {
+                // Fade already in progress; once it completes it will pick up the newest pending descriptor.
+                return;
+            }
+            if (!currentBgm) {
+                // Nothing is playing but we are not marked as transitioning; start immediately.
+                startPendingBgmImmediately();
+                return;
+            }
+            // Kick off a fade; when the fade completes we read and apply the latest descriptor.
+            bgmTransitionActive = true;
+            enqueueBgmTask("mapBgmTransition", async () => {
+                try {
+                    await stopBgmInternal({ fade: true, fadeMs: FADE_OUT_MS });
+                    startPendingBgmImmediately();
+                } finally {
+                    bgmTransitionActive = false;
+                }
             });
         }
     };
@@ -423,12 +579,14 @@
     // Expose simple getters if needed elsewhere
     g.AudioState = {
         get currentBgmId() { return currentBgm?.id || null; },
-        setBgmVolume(v) {
-            v = Math.max(0, Math.min(1, v));
-            if (!currentBgm) return;
-            if (currentBgm.gain) currentBgm.gain.gain.value = v;
-            else currentBgm.media.volume = v;
-        }
+        get isBgmTransitionActive() { return bgmTransitionActive; },
+        get pendingBgm() { return pendingBgmDescriptor; },
+        getMasterVolume: getGlobalMasterVolume,
+        setMasterVolume: setGlobalMasterVolume,
+        toggleMute: toggleMasterMute,
+        isMuted() { return masterVolume === 0; },
+        // Back-compat shim
+        setBgmVolume(v) { setGlobalMasterVolume(v); }
     };
  
 })(window);

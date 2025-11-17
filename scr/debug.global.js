@@ -1,3 +1,90 @@
+if (debug) {
+
+$(".debugPane").css("display", "block");
+const KNOWN_MAP_IDS = ["palletTown", "route1", "oaksLab", "playerHouse", "playerRoom", "rivalHouse"];
+
+const muteBtn = document.getElementById("muteBtn");
+if (muteBtn) {
+    const syncMuteButton = () => {
+        const vol = (window.AudioState && typeof AudioState.getMasterVolume === "function")
+            ? AudioState.getMasterVolume()
+            : 1;
+        muteBtn.textContent = (vol > 0) ? "SOUND ON" : "SOUND OFF";
+    };
+    muteBtn.addEventListener("click", () => {
+        if (window.AudioState && typeof AudioState.toggleMute === "function") {
+            AudioState.toggleMute();
+        }
+        syncMuteButton();
+    });
+    syncMuteButton();
+}
+
+const clipBtn = document.getElementById("clipBtn");
+if (clipBtn) {
+    const syncClipButton = () => {
+        const on = (window.Collision && typeof Collision.isIgnoringSolids === "function")
+            ? Collision.isIgnoringSolids()
+            : false;
+        clipBtn.textContent = on ? "WALK THROUGH WALLS ON" : "WALK THROUGH WALLS OFF";
+    };
+    clipBtn.addEventListener("click", () => {
+        if (window.Collision && typeof Collision.setIgnoreSolids === "function" && typeof Collision.isIgnoringSolids === "function") {
+            Collision.setIgnoreSolids(!Collision.isIgnoringSolids());
+        }
+        syncClipButton();
+    });
+    syncClipButton();
+}
+
+const mapSelect = document.getElementById("mapSelect");
+const mapXInput = document.getElementById("mapX");
+const mapYInput = document.getElementById("mapY");
+const mapWarpBtn = document.getElementById("mapWarpBtn");
+if (mapSelect && mapXInput && mapYInput && mapWarpBtn) {
+    const collectMapIds = () => {
+        const set = new Set(KNOWN_MAP_IDS);
+        if (window.World && typeof World.listLoadedMapIds === "function") {
+            const extra = World.listLoadedMapIds();
+            if (Array.isArray(extra)) {
+                extra.forEach(id => { if (id) set.add(String(id)); });
+            }
+        }
+        return Array.from(set).sort();
+    };
+
+    const populateMaps = () => {
+        const current = mapSelect.value;
+        const ids = collectMapIds();
+        mapSelect.innerHTML = "";
+        ids.forEach(id => {
+            const opt = document.createElement("option");
+            opt.value = id;
+            opt.textContent = id;
+            mapSelect.appendChild(opt);
+        });
+        if (current && ids.includes(current)) {
+            mapSelect.value = current;
+        }
+    };
+
+    populateMaps();
+
+    mapWarpBtn.addEventListener("click", () => {
+        const mapId = mapSelect.value;
+        if (!mapId) return;
+        const tx = parseInt(mapXInput.value, 10);
+        const ty = parseInt(mapYInput.value, 10);
+        if (window.DebugWarpTo && typeof window.DebugWarpTo === "function") {
+            window.DebugWarpTo({
+                mapId,
+                x: Number.isFinite(tx) ? tx : 0,
+                y: Number.isFinite(ty) ? ty : 0
+            });
+        }
+    });
+}
+
 (function (g) {
     "use strict";
 
@@ -17,12 +104,12 @@
             "left:8px",
             "bottom:8px",
             "z-index:9999",
-            "background:rgba(0,0,0,.75)",
-            "color:#0f0",
-            "font:12px/1.2 monospace",
+            "background: #00000077",
+            "color: #FFFFFF",
+            "font:8px/1.2 monospace",
             "padding:8px",
             "white-space:pre",
-            "border:1px solid #0a0",
+            "border:1px solid #FFFFFF77",
             "border-radius:4px",
             "pointer-events:none"
         ].join(";");
@@ -126,3 +213,6 @@ tags=[${tags}]`
 
     function pad3(n) { return String(n).padStart(3, " "); }
 })(window);
+} else {
+    $(".debugPane").remove();
+}

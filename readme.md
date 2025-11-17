@@ -42,8 +42,18 @@ I'm not insane.  *You're* insane.
 - Music transitions, specifically the fade-out part of it is too fast.
 - The textbox should not play a sound when dismissing a textbox, only when advancing text.
 - A command needs to be added to clear the text box and start writing new text, as if calling a new textbox.
+- In rare edge cases, if changing maps rapidly when different BGMs are specified, the next time the BGM changes, the music won't fade.  It'll work correctly again, afterwards.
 
 ## Changelog:
+### v0.0.46
+- Doubled the fade out duration from 500ms to 1000ms so it's more accurate to the original game.
+- Fixed a glitch with audio where rapidly switching between two maps with different BGMs defined would start playing multiple times instead of fading out.  Behavior more closely matches the original games, now.
+- Added debug pane which will allow various actions when testing the game
+- Added master volume control function (for debug and gameplay options later)
+- Added debug function for muting audio
+- Added walk through walls debug function to easily move around maps when testing.
+- Added map select/coordinate warp.
+
 ### v0.0.39
 - Added objects to test interacting in-world, ensured a delay happens just after closing a message box to prevent interaction loop.  (Previously, pressing "A" to close a textbox immediately re-opened it).
 - Added seamless map loading!  You can now walk from Pallet Town into Route 1, and back!

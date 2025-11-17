@@ -171,7 +171,7 @@ async function runWarp(act) {
         // Post-warp flags: mark once-used and setOnUse flags if any
         if (window.Flags) {
             // "once": set a conventional used flag to suppress future triggers
-            if (act.once) {
+            if (act.once && act.object && act.object.id != null) {
                 const usedKey = "obj:" + String(nextMap.id || '') + ":" + String(act.object.id) + ":used";
                 Flags.set(usedKey, true);
             }
@@ -188,6 +188,30 @@ async function runWarp(act) {
         WORLD_BUSY = false;
     }
 }
+
+window.DebugWarpTo = function(opts) {
+    if (!opts) return;
+    const mapId = opts.mapId || opts.id;
+    if (!mapId) {
+        console.warn("DebugWarpTo: missing mapId");
+        return;
+    }
+    const action = {
+        type: "warp",
+        to: {
+            mapId: String(mapId),
+            x: Number.isFinite(opts.x) ? Math.trunc(opts.x) : undefined,
+            y: Number.isFinite(opts.y) ? Math.trunc(opts.y) : undefined,
+            facing: opts.facing || undefined
+        },
+        transition: {
+            out: (opts.transition && opts.transition.out) || "gen1ToBlack",
+            in: (opts.transition && opts.transition.in) || "gen1FromBlack"
+        },
+        autoWalk: false
+    };
+    runWarp(action);
+};
 
 // Testing map loading system
 MapLoader.loadMap("res/bg/maps/", "playerRoom").then(({ map }) => {
@@ -424,6 +448,17 @@ function update(dt){
                     if (actions && actions.length > 0) {
                         runActions(actions);
                     }
+                }
+            }
+            if (p._clipBump) {
+                // When walk-through-walls is enabled, we manually trigger bump actions for the ignored tile.
+                const ctx = p._clipBump;
+                p._clipBump = null;
+                const actions = (window.World && typeof World.onBump === 'function')
+                    ? World.onBump({ tx: ctx.tx, ty: ctx.ty, dir: ctx.dir })
+                    : (window.ObjectManager ? ObjectManager.onBump({ tx: ctx.tx, ty: ctx.ty, dir: ctx.dir }) : []);
+                if (actions && actions.length > 0) {
+                    runActions(actions);
                 }
             }
         } else {

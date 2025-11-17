@@ -7,6 +7,8 @@
         attachMap,
         squareAt,
         canStartStep,
+        setIgnoreSolids,
+        isIgnoringSolids,
         // helpers (exported for later phases / debugging)
         toTileX: px => (px / TILE) | 0,
         toTileY: py => (py / TILE) | 0,
@@ -18,6 +20,15 @@
     let SQUARES = null;
     let GRID = null;
     let VOID_ID = 0;
+    let IGNORE_SOLIDS = false; // toggled by debug panel to let player bypass walls
+
+    function setIgnoreSolids(flag) {
+        IGNORE_SOLIDS = !!flag;
+    }
+
+    function isIgnoringSolids() {
+        return IGNORE_SOLIDS;
+    }
 
     function attachMap(map) {
         // squares - tile definitions w/ collision/attributes
@@ -81,6 +92,7 @@
     //  - Water is blocked for WALK/BIKE but allowed for SURF.
     function isBlockedForMode(sq, moveMode) {
         if (!sq) return true; // treat missing as blocked
+        if (IGNORE_SOLIDS) return false;
         const mode = String(moveMode || 'WALK').toUpperCase();
         const c = sq.collision || {};
 
@@ -151,6 +163,16 @@
         const [nx, ny] = step(tx, ty, dir);
         const destSq = squareAt(nx, ny);
         if (!destSq) return { ok: false, reason: "oob" };
+        const destCollision = destSq.collision || {};
+        if (IGNORE_SOLIDS && destCollision.solid) {
+            return {
+                ok: true,
+                mode: "WALK",
+                landing: [nx, ny],
+                distanceTiles: 1,
+                ignoredSolid: true
+            };
+        }
         if (isBlockedForMode(destSq, moveMode)) return { ok: false, reason: "solid" };
         return { ok: true, mode: "WALK", landing: [nx, ny], distanceTiles: 1 };
     }

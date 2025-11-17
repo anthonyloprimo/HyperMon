@@ -109,7 +109,7 @@ html, body {
             display: inline-block;
             background-color: #FFFFFF55;
             color: #FFFFFFBB;
-            text-shadow: 0 1px #00000055;
+            text-shadow: 0 1px 0px #000000;
             box-shadow: 0 2px 4px 0 #00000077;
             border-radius: 4px;
             padding: 6px 8px 8px;
@@ -128,12 +128,95 @@ html, body {
             .authorBtn:hover {
                 color: #FFFFFF;
             }
+    
+    .debugPane {
+        position: absolute;
+        text-align: right;
+        top: 8px;
+        right: 8px;
+        background-color: #00000077;
+        border: 1px solid #FFFFFF77;
+        border-radius: 4px;
+        color: #FFFFFF;
+        padding: 8px;
+        display: none;
+        min-width: 220px;
+    }
+        .dbgBtn {
+            border: 1px solid #FFFFFF55;
+            background-color: #FFFFFF55;
+            box-shadow: 0 0 0 1px #00000077;
+            color: #FFFFFF;
+            font-size: 7pt;
+            text-shadow: 0 1px 0 #000000, 0 1px 2px #000000;
+            font-weight: bold;
+            padding: 4px;
+            display: block;
+            margin: 4px 0;
+            width: 100%;
+        }
+            .dbgBtn:hover {
+                background-color: #FFFFFF77;
+            }
+            .dbgBtn:active {
+                background-color: #77777777;
+                color: #FFFFFFBB;
+                text-shadow: 0 1px 0 #000000BB, 0 1px 2px #000000BB;
+            }
+        .dbgField {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 4px 0;
+            gap: 4px;
+        }
+            .dbgField label {
+                flex: 0 0 auto;
+                font-size: 7pt;
+            }
+            .dbgInput {
+                flex: 1;
+                border: 1px solid #FFFFFF55;
+                background-color: #00000055;
+                color: #FFFFFF;
+                font-size: 7pt;
+                padding: 2px;
+            }
+            .dbgInput:focus {
+                outline: 1px solid #FFFFFFAA;
+            }
+        hr {
+            border: none;
+            outline: none;
+            height: 1px;
+            background-color: #FFFFFF77;
+        }
 </style>
 </head>
 <body>
 <div class="githubLinks">
-    <a class="repoBtn" href="https://github.com/anthonyloprimo/HyperMon" target="_blank">HYPERMON v0.0.39</a><br>
+    <a class="repoBtn" href="https://github.com/anthonyloprimo/HyperMon" target="_blank">HyperMon</a><br>
     <a class="authorBtn" href="https://github.com/anthonyloprimo" target="_blank">by anthonyloprimo</a>
+</div>
+<div class="debugPane">
+    <button id="muteBtn" class="dbgBtn">SOUND ON</button>
+    <hr>
+    <button id="clipBtn" class="dbgBtn">WALK THROUGH WALLS OFF</button>
+    <hr>
+    <div class="dbgField">
+        <label for="mapSelect">MAP</label>
+        <select id="mapSelect" class="dbgInput"></select>
+    </div>
+    <div class="dbgField">
+        <label for="mapX">X</label>
+        <input id="mapX" class="dbgInput" type="number" value="0">
+    </div>
+    <div class="dbgField">
+        <label for="mapY">Y</label>
+        <input id="mapY" class="dbgInput" type="number" value="0">
+    </div>
+    <button id="mapWarpBtn" class="dbgBtn">GO TO MAP</button>
+    <hr>
 </div>
 <div id="gameContainer">
     <div id="gameRoot">
@@ -144,6 +227,10 @@ html, body {
 </div>
 
 <script>
+    const gameVersion = "0.0.46"
+    $(".repoBtn").html(`HYPERMON v${gameVersion} on GitHub`)
+    const debug = true;
+
     let SCALE = 1; // global scale value
 
     // Integer scaling for 160x144 logical screen

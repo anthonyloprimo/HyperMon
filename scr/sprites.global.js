@@ -270,8 +270,18 @@
             return;
         }
 
-        // allowed to move?  clear bump state, walk like normal...
-        a.bumping = false;
+        const bypassedSolid = !!res.ignoredSolid;
+        if (bypassedSolid) {
+            // Preserve previous tile + facing so debug mode can fire bump triggers even as we walk through walls.
+            a._clipBump = { tx, ty, dir };
+        } else {
+            a._clipBump = null;
+        }
+
+        // allowed to move?  clear bump state, walk like normal unless we intentionally bypassed a wall
+        if (!bypassedSolid) {
+            a.bumping = false;
+        }
         a.moving = true;
 
         if (!chaining) {

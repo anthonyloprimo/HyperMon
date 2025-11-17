@@ -133,6 +133,10 @@
     // Public: optionally set/override directory
     function setDir(dir) { if (dir) _dir = String(dir); }
 
+    function listLoadedMapIds() {
+        return Array.from(_maps.keys());
+    }
+
     // Compute neighbor ownership for a tile relative to current map
     // Returns { map, tx, ty } if the tile belongs to current or a loaded neighbor; otherwise null.
     function resolveOwner(tx, ty) {
@@ -460,16 +464,74 @@
         // Identical track: do nothing
         if (next && _audioBgmId && next === _audioBgmId) return;
 
-        // Different track: fade out current, play next immediately (no fade-in)
-        if (window.AudioHooks && typeof AudioHooks.onBgm === "function") {
-            if (next) {
-                AudioHooks.onBgm({ url: next, fade: true, fadeMs: 250, fadeInMs: 0, loop: true });
-            } else {
-                AudioHooks.onBgm({ stop: true, fade: true, fadeMs: 250 });
+        // // Different track: fade out current first, then evaluate the map again before playing.
+        // if (window.AudioHooks && typeof AudioHooks.fadeOutThenPlay === "function") {
+        //     AudioHooks.fadeOutThenPlay({
+        //         fadeMs: 250,
+        //         fadeInMs: 0,
+        //         resolveNext: () => {
+        //             const liveMap = currentMap();
+        //             const resolved = liveMap ? String(liveMap.bgm || "") : "";
+        //             _audioBgmId = resolved || null;
+        //             if (!resolved) return null; // stay silent if destination map wants no BGM
+        //             return { url: resolved, fade: false, fadeInMs: 0, loop: true };
+        //         }
+        //     });
+        // } else if (window.AudioHooks && typeof AudioHooks.onBgm === "function") {
+        //     // Fallback: behave like before if the new helper is unavailable.
+        //     if (next) {
+        //         AudioHooks.onBgm({ url: next, fade: true, fadeMs: 250, fadeInMs: 0, loop: true });
+        //     } else {
+        //         AudioHooks.onBgm({ stop: true, fade: true, fadeMs: 250 });
+        //     }
+        //     _audioBgmId = next || null;
+        // } else {
+        //     _audioBgmId = next || null;
+        // }
 
+        // // Different track: fade out fully (using engine defaults) before resolving the live map.
+        // if (window.AudioState && window.AudioState.isBgmTransitionActive) {
+        //     // Audio is already mid-transition; avoid queuing another sequence.
+        //     return;
+        // }
+        // if (window.AudioHooks && typeof AudioHooks.fadeOutThenPlay === "function") {
+        //     AudioHooks.fadeOutThenPlay({
+        //         resolveNext: () => {
+        //             const liveMap = currentMap();
+        //             const resolved = liveMap ? String(liveMap.bgm || "") : "";
+//                     _audioBgmId = resolved || null;
+        //             if (!resolved) return null;
+        //             return { url: resolved, fade: false, loop: true };
+        //         }
+        //     });
+        // } else if (window.AudioHooks && typeof AudioHooks.onBgm === "function") {
+        //     // Fallback: match the fade timings defined in Audio (defaults are 1000ms).
+        //     if (next) {
+        //         AudioHooks.onBgm({ url: next, fade: true, loop: true });
+        //     } else {
+        //         AudioHooks.onBgm({ stop: true, fade: true });
+        //     }
+        //     _audioBgmId = next || null;
+        // } else {
+        //     _audioBgmId = next || null;
+        // }
+
+        // Hand the request off to the audio system; it will fade once and honor the latest map state.
+        if (window.AudioHooks && typeof AudioHooks.requestMapBgm === "function") {
+            const descriptor = next ? { url: next, loop: true } : null;
+            AudioHooks.requestMapBgm(descriptor);
+            _audioBgmId = next || null;
+        } else if (window.AudioHooks && typeof AudioHooks.onBgm === "function") {
+            // Fallback behavior if the new helper isn’t available (older builds, etc).
+            if (next) {
+                AudioHooks.onBgm({ url: next, fade: true, loop: true });
+            } else {
+                AudioHooks.onBgm({ stop: true, fade: true });
             }
+            _audioBgmId = next || null;
+        } else {
+            _audioBgmId = next || null;
         }
-        _audioBgmId = next || null;
     }
 
     g.World = {
@@ -479,6 +541,7 @@
         currentMap,
         resolveOwner,
         worldSquareAt,
+        listLoadedMapIds,
         onStep,
         onPressA,
         onBump,
