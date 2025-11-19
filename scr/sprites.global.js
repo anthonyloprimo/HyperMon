@@ -217,6 +217,7 @@
 
             if (a.x === a.targetX && a.y === a.targetY) {
                 a.moving = false;
+                a._nextLanding = null;
 
                 if (jp && jp.held && jp.held(a.facing)) {
                     a._chainMove = true;
@@ -258,6 +259,8 @@
         // Check if we can step
         // Pass actor's movement mode so water rules (and future mode-specific rules) apply correctly
         const res = window.Collision && Collision.canStartStep(tx, ty, dir, { moveMode: a.moveMode || 'WALK' });
+        console.debug("[SpriteMove] canStartStep?", tx, ty, dir, res);
+        a._nextLanding = null; // record the next destination tile for effects like tall grass
         if (!res || !res.ok) {
             // can't move forward
             a.moving = false;
@@ -300,6 +303,11 @@
             if (!chaining) {
                 const seq = walkSequenceFor(a, dir);
                 applyFrame(a, seq[0], flipFor(a, dir, true));
+            }
+
+            if (res.landing && res.landing.length === 2) {
+                console.debug("[SpriteMove] landing recorded", res.landing[0], res.landing[1]);
+                a._nextLanding = { tx: res.landing[0], ty: res.landing[1] };
             }
         } else if (res.mode === "HOP") {
             // we aren't using the normal one-tile movement process...
@@ -462,7 +470,7 @@
         const startX = player.x, startY = player.y;
 
         // Shadow: appears 4px below the player's ground position, removed on land
-        Renderer.addSprite("player_shadow", 9, startX, startY + 4);
+        Renderer.addSprite("player_shadow", 0x09, startX, startY + 4);
 
         player.motion = {
             kind: "HOP",
@@ -530,7 +538,7 @@
         }
 
         // Shadow sticks to ground path (no vertical offset), always +4px
-        Renderer.updateSprite("player_shadow", 9, baseX, baseY + 4);
+        Renderer.updateSprite("player_shadow", 0x09, baseX, baseY + 4);
 
         if (m.px >= m.dist) {
             player._hopBob = 0;

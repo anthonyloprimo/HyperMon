@@ -45,6 +45,10 @@ I'm not insane.  *You're* insane.
 - In rare edge cases, if changing maps rapidly when different BGMs are specified, the next time the BGM changes, the music won't fade.  It'll work correctly again, afterwards.
 
 ## Changelog:
+### v0.0.48
+- Added grass overlay effect when the player is in tall grass.
+- Fixed a bug where locations were determined by applying 'floor' to the pixel coordinates, which caused the origin of each check to lock to the top-left of each unit (mainly 16x16px squares).  As a result, moving right or down updates *after* a player finishes moving, while moving up or left updates the moment they move, causing certain things to happen too early.  This was fixed by adding half the size of the square after applying floor, and now all directions behave exactly as expected.  This fix improves the grass overlay effect as well as coordinate updates at the same time.
+
 ### v0.0.46
 - Doubled the fade out duration from 500ms to 1000ms so it's more accurate to the original game.
 - Fixed a glitch with audio where rapidly switching between two maps with different BGMs defined would start playing multiple times instead of fading out.  Behavior more closely matches the original games, now.

@@ -167,7 +167,7 @@ if (mapSelect && mapXInput && mapYInput && mapWarpBtn) {
         if (!info || !info.sq) return `${label}@(${tx},${ty}): OOB/void`;
         const sq = info.sq;
         const f  = decodeCollision(sq.collision);
-        const tags = (sq.attributes && Array.isArray(sq.attributes.tags)) ? sq.attributes.tags.join(",") : "";
+        const tags = Array.isArray(sq.tags) ? sq.tags.join(",") : "";
         const tiles = Array.isArray(sq.tiles) ? sq.tiles.map(hexTile).join(" ") : "";
         return (
 `${label}@(${tx},${ty}):

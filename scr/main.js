@@ -18,9 +18,6 @@ let _lastPlayerTx = null, _lastPlayerTy = null;
 // Track if the player was bumping against an onBump trigger
 let _wasBumping = false;
 
-// New code: track player moving state to detect step completion
-let _prevMoving = false;
-
 // Auto-walk input lock flag: true while the player is performing an automatic one-tile step
 let AUTO_WALKING = false;
 
@@ -34,6 +31,134 @@ let _inputSuppressFrames = 0;
 
 // Tracks the previous textbox-open state for edge detection.
 let _wasTextboxOpen = false;
+
+const GRASS_OVERLAY_FRAMES = {
+    default: 0x0E,
+    route1: 0x0F
+};
+
+// Small utility that manages tall grass overlay sprites and the player head mask.
+const TallGrassFX = (() => {
+    const CURRENT_ID = "__grassTileCurrent";
+    const NEXT_ID = "__grassTileNext";
+    let headEl = null;
+    let headActive = false;
+
+    function frameForMap() {
+        // Allow maps to override the grass frame (default falls back to GRASS_OVERLAY_FRAMES).
+        const map = window.World && typeof World.currentMap === "function" ? World.currentMap() : null;
+        if (map) {
+            if (typeof map.grassOverlayFrame === "number") return map.grassOverlayFrame;
+            if (Object.prototype.hasOwnProperty.call(GRASS_OVERLAY_FRAMES, map.id)) return GRASS_OVERLAY_FRAMES[map.id];
+        }
+        return GRASS_OVERLAY_FRAMES.default;
+    }
+
+    function showTile(kind, tx, ty) {
+        if (!window.Renderer || typeof Renderer.addSprite !== "function") return;
+        const id = kind === "next" ? NEXT_ID : CURRENT_ID;
+        const el = Renderer.addSprite(id, frameForMap(), tx * 16, ty * 16);
+        const base = parseInt(el.style.zIndex, 10) || 0;
+        el.style.zIndex = String(base + 20);
+    }
+
+    function hideTile(kind) {
+        if (!window.Renderer || typeof Renderer.removeSprite !== "function") return;
+        const id = kind === "next" ? NEXT_ID : CURRENT_ID;
+        Renderer.removeSprite(id);
+    }
+
+    function ensureHeadEl() {
+        if (headEl) return headEl;
+        const layer = document.getElementById("layer-sprites");
+        if (!layer) return null;
+        // Head overlay mirrors the player's sprite but only renders the top half.
+        headEl = document.createElement("div");
+        headEl.className = "sprite tall-grass-mask";
+        headEl.style.width = "16px";
+        headEl.style.height = "8px";
+        headEl.style.position = "absolute";
+        headEl.style.pointerEvents = "none";
+        headEl.style.transformOrigin = "left top";
+        headEl.style.overflow = "hidden";
+        headEl.style.display = "none";
+        layer.appendChild(headEl);
+        return headEl;
+    }
+
+    function setHeadActive(flag) {
+        const el = ensureHeadEl();
+        if (!el) return;
+        headActive = !!flag;
+        el.style.display = headActive ? "block" : "none";
+    }
+
+    function reset() {
+        if (window.Renderer && typeof Renderer.removeSprite === "function") {
+            Renderer.removeSprite(CURRENT_ID);
+            Renderer.removeSprite(NEXT_ID);
+        }
+        if (headEl) headEl.style.display = "none";
+        headActive = false;
+    }
+
+    function updateTiles(currentTile, nextTile) {
+        const currentGrass = !!(currentTile && isTallGrassTile(currentTile.tx, currentTile.ty));
+        const nextGrass = !!(nextTile && isTallGrassTile(nextTile.tx, nextTile.ty));
+
+        if (currentGrass && currentTile) {
+            showTile("current", currentTile.tx, currentTile.ty);
+        } else {
+            hideTile("current");
+        }
+
+        if (nextGrass && nextTile) {
+            showTile("next", nextTile.tx, nextTile.ty);
+        } else {
+            hideTile("next");
+        }
+
+        setHeadActive(currentGrass);
+    }
+
+    function onMoveStart(from, to) {
+        updateTiles(from || null, to || null);
+    }
+
+    function onTileSettled(tile) {
+        updateTiles(tile || null, null);
+    }
+
+    function syncHeadOverlay() {
+        if (!headActive || !headEl) return;
+        const player = window.Sprites && typeof Sprites.get === "function" ? Sprites.get("player") : null;
+        if (!player || !player.el) return;
+        headEl.style.transform = player.el.style.transform;
+        headEl.style.backgroundImage = player.el.style.backgroundImage;
+        headEl.style.backgroundPosition = player.el.style.backgroundPosition;
+        headEl.style.backgroundSize = player.el.style.backgroundSize;
+        headEl.style.width = `${player.def.frameW}px`;
+        headEl.style.height = "8px";
+        const base = parseInt(player.el.style.zIndex, 10) || 0;
+        headEl.style.zIndex = String(base + 50);
+    }
+
+    return { reset, onMoveStart, onTileSettled, updateTiles, syncHeadOverlay };
+})();
+
+window.TallGrassFX = TallGrassFX;
+
+function isTallGrassTile(tx, ty) {
+    if (tx == null || ty == null) return false;
+    if (!window.World || typeof World.worldSquareAt !== "function") return false;
+    const sq = World.worldSquareAt(tx, ty);
+    if (!sq) return false;
+    const tags = Array.isArray(sq.tags) ? sq.tags : [];
+    const surface = sq.surface || (sq.collision && sq.collision.surface) || "";
+    const tagMatch = tags.some(tag => typeof tag === "string" && tag.includes("tallGrass"));
+    const surfMatch = typeof surface === "string" && surface.includes("tallGrass");
+    return tagMatch || surfMatch;
+}
 
 // Helper to read current player tile (safe if player not yet spawned)
 function getPlayerTile() {
@@ -89,6 +214,7 @@ async function runWarp(act) {
         if (window.Renderer && typeof Renderer.clearBg === 'function') {
             Renderer.clearBg();
         }
+        TallGrassFX.reset();
 
         // Load and attach the destination map
         const mapId = String(act.to.mapId || '');
@@ -124,9 +250,10 @@ async function runWarp(act) {
             p.moving = false;
             p.animTick = 0;
 
-            // Reset last-tile tracker so onStep for the new tile can fire once post-warp
-            const curTile = getPlayerTile();
-            if (curTile) { _lastPlayerTx = curTile.tx; _lastPlayerTy = curTile.ty; }
+        // Reset last-tile tracker so onStep for the new tile can fire once post-warp
+        const curTile = getPlayerTile();
+        if (curTile) { _lastPlayerTx = curTile.tx; _lastPlayerTy = curTile.ty; }
+        TallGrassFX.onTileSettled(curTile || null);
 
             // Force camera to re-evaluate view next frame
             Camera.setTarget(p);
@@ -229,6 +356,7 @@ MapLoader.loadMap("res/bg/maps/", "playerRoom").then(({ map }) => {
     if (window.ObjectManager) ObjectManager.attachMap(map);
 
     Renderer.drawView(0, 0);
+    TallGrassFX.reset();
 
     // spawn player
     const p = Sprites.spawn({
@@ -242,6 +370,7 @@ MapLoader.loadMap("res/bg/maps/", "playerRoom").then(({ map }) => {
     // Initialize last known tile for onStep detection
     const cur = getPlayerTile();
     if (cur) { _lastPlayerTx = cur.tx; _lastPlayerTy = cur.ty; }
+    TallGrassFX.onTileSettled(cur || null);
 
     Debug.init();
 });
@@ -343,14 +472,21 @@ function update(dt){
     const lockInput = nowTextboxOpen || WORLD_BUSY || AUTO_WALKING || INPUT_SUPPRESSED;
 
     Sprites.update({ jp, dt, inputLock: lockInput });
+    const playerRef = Sprites.get('player');
+    // Update grass overlays every frame based on the square we occupy and the pending landing tile.
+    if (playerRef && window.Collision) {
+        const tx = Collision.toTileX(playerRef.x);
+        const ty = Collision.toTileY(playerRef.y);
+        const nextTile = playerRef.moving ? (playerRef._nextLanding || null) : null;
+        TallGrassFX.updateTiles({ tx, ty }, nextTile);
+    } else {
+        TallGrassFX.updateTiles(null, null);
+    }
     // When the player step just finished, apply seam switch immediately
-    {
-        const p = Sprites.get('player');
-        if (p && window.World && typeof World.checkMapSwitchAndApply === 'function') {
-            const atBoundary = (p.x % 16 === 0) && (p.y % 16 === 0);
-            if (atBoundary) {
-                World.checkMapSwitchAndApply(p);
-            }
+    if (playerRef && window.World && typeof World.checkMapSwitchAndApply === 'function') {
+        const atBoundary = (playerRef.x % 16 === 0) && (playerRef.y % 16 === 0);
+        if (atBoundary) {
+            World.checkMapSwitchAndApply(playerRef);
         }
     }
     Camera.update();
@@ -374,13 +510,14 @@ function update(dt){
     //     }
     // }
     if (!WORLD_BUSY && window.Collision) {
-        const p = Sprites.get('player');
+        const p = playerRef;
         if (p && !p.moving) {
             const cur = getPlayerTile();
             if (cur) {
                 // Fire onStep only when tile truly changed since last settled position
                 if (cur.tx !== _lastPlayerTx || cur.ty !== _lastPlayerTy) {
                     _lastPlayerTx = cur.tx; _lastPlayerTy = cur.ty;
+                    TallGrassFX.onTileSettled(cur);
 
                     // New code: seamless map switch if the settled tile belongs to a neighbor
                     if (window.World && typeof World.checkMapSwitchAndApply === 'function') {
@@ -397,12 +534,14 @@ function update(dt){
                     }
                 }
             }
+        } else if (!p) {
+            TallGrassFX.onTileSettled(null);
         }
     }
 
     // If we are in auto-walk mode, unlock input once the player finishes the one-tile move
     if (AUTO_WALKING) {
-        const p = Sprites.get('player');
+        const p = playerRef;
         if (p && !p.moving) {
             AUTO_WALKING = false;
         }
@@ -413,7 +552,7 @@ function update(dt){
     if (!WORLD_BUSY && !AUTO_WALKING && !nowTextboxOpen && !INPUT_SUPPRESSED && window.ObjectManager) {
         const wantA = jp.pressed('a');
         if (wantA) {
-            const p = Sprites.get('player');
+            const p = playerRef;
             if (p) {
                 const cur = getPlayerTile();
                 if (cur) {
@@ -432,7 +571,7 @@ function update(dt){
 
     // Ignore bump triggers during suppression to keep behavior consistent
     if (!WORLD_BUSY && !AUTO_WALKING && !INPUT_SUPPRESSED && window.ObjectManager) {
-        const p = Sprites.get('player');
+        const p = playerRef;
         if (p) {
             const justBumped = !!p.bumping && !_wasBumping;
             _wasBumping = !!p.bumping;
@@ -466,6 +605,7 @@ function update(dt){
         }
     }
 
+    TallGrassFX.syncHeadOverlay();
     Debug.update();
     Renderer.animate();
 }

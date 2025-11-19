@@ -2,6 +2,12 @@
     "use strict";
 
     const TILE = 16;
+    const HALF_TILE = TILE / 2;
+
+    function worldToTile(value) {
+        // Normalize world coordinates to tile coordinates using the sprite's center rather than its top-left corner.
+        return Math.floor((value + HALF_TILE) / TILE);
+    }
 
     const Collision = {
         attachMap,
@@ -10,8 +16,8 @@
         setIgnoreSolids,
         isIgnoringSolids,
         // helpers (exported for later phases / debugging)
-        toTileX: px => (px / TILE) | 0,
-        toTileY: py => (py / TILE) | 0,
+        toTileX: px => worldToTile(px),
+        toTileY: py => worldToTile(py),
         step
     };
     g.Collision = Collision;
@@ -42,6 +48,7 @@
         } else {
             GRID = null;
         }
+        console.debug(`GRID = ${GRID}`);
 
         // void square ID
         VOID_ID = (map && (map.voidSquare ?? map.map?.voidSquare)) ?? 0;
